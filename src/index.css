@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #00d4ff;
+  --color-background-light: #f5f8f8;
+  --color-background-dark: #0a0f1e;
+  --color-navy: #0A0F1E;
+  --color-silver: #C8D6E5;
+  --color-cyan: #00D4FF;
+  --color-white: #FFFFFF;
+  --color-surface: #12192b;
+  --color-slate-custom: #1a2535;
+
+  --font-display: "Cormorant Garamond", serif;
+  --font-body: "DM Sans", sans-serif;
+  --font-sans: "DM Sans", sans-serif;
+  --font-serif: "Cormorant Garamond", serif;
+  --font-manrope: "Manrope", sans-serif;
+}
+
+@layer utilities {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .glass-active {
+    background: rgba(0, 212, 255, 0.15);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+  }
+  .cyan-glow {
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.15);
+  }
+  .grain-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0.03;
+    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDSSdtH06b-33mo_UkMnC7Gt4nmeERhVsMTuwunstZSGQnE_CKzltg2a93wLbTYgP6ZIQA8scDmZ85fnNixfB0GQg9y3QhlpgPZyRC-uNKYHZPXLVs7JQ7Xs9aYavO6iEW8bSs5l3W78NCnsZm7ssH5e_LGf3fqadREGf5jhFwNOLF7OOlKK0BPSHWCuNjcCR12mV7ZgTqnzOgRWsBQWiOZNeR7UvVuCv4HLUuZM0liKTb2FMwgIN991JKLDUTuWY1x8IMHLRdakGzS');
+  }
+}

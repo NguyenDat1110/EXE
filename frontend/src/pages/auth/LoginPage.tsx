@@ -47,28 +47,46 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen bg-navy flex">
-      {/* Left Half - Image (hidden on mobile) */}
+      {/* Left Half - Event Vibe & Candle Light Effect */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundImage:
-              'url(https://images.unsplash.com/photo-1519671482677-504be0ffbc87?w=800&q=80)',
+              'url(https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1000&q=80)',
           }}
         />
+        
+        {/* Animated Candlelight/Glow Effect */}
+        <motion.div
+          animate={{
+            opacity: [0.25, 0.45, 0.25],
+            scale: [1, 1.05, 1],
+          }}
+          transition={{
+            duration: 6,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+          className="absolute inset-0 pointer-events-none mix-blend-screen"
+          style={{
+            background: 'radial-gradient(circle, rgba(245,158,11,0.2) 0%, rgba(0,0,0,0) 70%)',
+          }}
+        />
+
         {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/40 to-transparent" />
 
         {/* Watermark & Quote */}
         <div className="absolute inset-0 flex flex-col items-start justify-end p-12">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.6 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
             className="space-y-4"
           >
-            <h2 className="font-display text-5xl text-white/30">CLICKPICK</h2>
-            <p className="text-white/60 text-lg font-serif max-w-xs italic">
+            <h2 className="font-display text-5xl font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 drop-shadow-md">CLICKPICK</h2>
+            <p className="text-white/80 text-lg font-serif max-w-xs italic">
               "Biến mỗi sự kiện thành một trải nghiệm đáng nhớ"
             </p>
           </motion.div>
@@ -94,7 +112,7 @@ export function LoginPage() {
             />
           )}
 
-          {/* Toggle between login and register */}
+          {/* Toggle link */}
           {!showRegister && (
             <motion.div
               className="mt-8 text-center"
@@ -103,7 +121,7 @@ export function LoginPage() {
               transition={{ delay: 0.5 }}
             >
               <button
-                onClick={() => setShowRegister(true)}
+                onClick={() => navigate('/register')}
                 className="text-silver/60 hover:text-silver transition-colors"
               >
                 Chưa có tài khoản?{' '}

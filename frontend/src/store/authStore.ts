@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { findMockUser, MOCK_USERS } from '../lib/mockData';
+import api from '../services/api';
 
 export type UserRole = 'customer' | 'vendor' | 'admin';
 
@@ -30,7 +31,7 @@ export interface AuthState {
   isLoading: boolean;
   token: string | null;
 
-  login: (email: string, password: string, role: UserRole) => Promise<void>;
+  login: (email: string, password: string, role?: UserRole) => Promise<void>;
   logout: () => void;
   register: (data: Partial<User>) => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
@@ -47,63 +48,75 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       token: null,
 
-      login: async (email: string, password: string, role: UserRole) => {
+      login: async (email: string, password: string, role: UserRole = 'customer') => {
         set({ isLoading: true });
         try {
-          // Mock auth delay
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          // Attempt real API login
+          const response = await api.post('/auth/login', { email, password });
+          const { token, user } = response.data;
 
-          // Check mock users database
-          const mockUser = findMockUser(email, password);
-          
-          if (mockUser) {
-            // Use mock user data
-            const user: User = {
-              id: `user_${Date.now()}`,
-              email: mockUser.email,
-              name: mockUser.name,
-              role: mockUser.role,
-              avatar: mockUser.avatar,
-              phone: mockUser.phone,
-              dateOfBirth: mockUser.dateOfBirth,
-              address: mockUser.address,
-              city: mockUser.city,
-              companyName: mockUser.companyName,
-              taxId: mockUser.taxId,
-              companyAddress: mockUser.companyAddress,
-              businessLicense: mockUser.businessLicense,
-              bio: mockUser.bio,
-              portfolio: [],
-              createdAt: new Date().toISOString(),
-            };
+          set({
+            user,
+            role: user.role,
+            isAuthenticated: true,
+            token,
+            isLoading: false,
+          });
+        } catch (error: any) {
+          // Network Error or Server offline fallback to mock login
+          const isNetworkError = error.message === 'Network Error' || !error.response;
 
-            set({
-              user,
-              role: user.role,
-              isAuthenticated: true,
-              token: 'mock-token-' + Date.now(),
-              isLoading: false,
-            });
-          } else {
-            // Fallback to generic mock user for non-registered accounts
-            const genericUser: User = {
-              id: `user_${Date.now()}`,
-              email,
-              name: email.split('@')[0],
-              role,
-              avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
-              createdAt: new Date().toISOString(),
-            };
+          if (isNetworkError) {
+            const mockUser = findMockUser(email, password);
+            if (mockUser) {
+              const user: User = {
+                id: `user_${Date.now()}`,
+                email: mockUser.email,
+                name: mockUser.name,
+                role: mockUser.role,
+                avatar: mockUser.avatar,
+                phone: mockUser.phone,
+                dateOfBirth: mockUser.dateOfBirth,
+                address: mockUser.address,
+                city: mockUser.city,
+                companyName: mockUser.companyName,
+                taxId: mockUser.taxId,
+                companyAddress: mockUser.companyAddress,
+                businessLicense: mockUser.businessLicense,
+                bio: mockUser.bio,
+                portfolio: [],
+                createdAt: new Date().toISOString(),
+              };
 
-            set({
-              user: genericUser,
-              role,
-              isAuthenticated: true,
-              token: 'mock-token-' + Date.now(),
-              isLoading: false,
-            });
+              set({
+                user,
+                role: user.role,
+                isAuthenticated: true,
+                token: 'mock-token-' + Date.now(),
+                isLoading: false,
+              });
+              return;
+            } else {
+              const genericUser: User = {
+                id: `user_${Date.now()}`,
+                email,
+                name: email.split('@')[0],
+                role,
+                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
+                createdAt: new Date().toISOString(),
+              };
+
+              set({
+                user: genericUser,
+                role,
+                isAuthenticated: true,
+                token: 'mock-token-' + Date.now(),
+                isLoading: false,
+              });
+              return;
+            }
           }
-        } catch (error) {
+
           set({ isLoading: false });
           throw error;
         }

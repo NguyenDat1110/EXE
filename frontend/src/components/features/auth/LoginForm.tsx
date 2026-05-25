@@ -13,8 +13,8 @@ interface LoginFormProps {
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<UserRole>('customer');
   const [showToast, setShowToast] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const { isLoading, login } = useAuthStore();
 
@@ -25,29 +25,29 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      role: 'customer',
       email: '',
       password: '',
     },
   });
 
   const onSubmit = async (data: LoginFormData) => {
+    setErrorMsg(null);
     try {
-      await login(data.email, data.password, selectedRole);
+      await login(data.email, data.password);
       setShowToast(true);
       setTimeout(() => {
-        onSuccess(selectedRole);
+        const userRole = useAuthStore.getState().role || 'customer';
+        onSuccess(userRole);
       }, 500);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login failed:', error);
+      if (error.response && error.response.data && error.response.data.message) {
+        setErrorMsg(error.response.data.message);
+      } else {
+        setErrorMsg('Email hoặc mật khẩu không chính xác.');
+      }
     }
   };
-
-  const roleOptions = [
-    { id: 'customer', label: '👤 Khách Hàng', icon: '👤' },
-    { id: 'vendor', label: '🏢 Vendor', icon: '🏢' },
-    { id: 'admin', label: '🛡️ Admin', icon: '🛡️' },
-  ] as const;
 
   return (
     <motion.form
@@ -59,33 +59,15 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     >
       {/* Logo & Heading */}
       <div className="text-center space-y-2 mb-8">
-        <h1 className="font-display text-4xl text-white">CLICKPICK</h1>
+        <h1 className="font-display text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 drop-shadow-md tracking-wider">CLICKPICK</h1>
         <h2 className="font-display text-2xl text-silver">Chào mừng trở lại</h2>
       </div>
 
-      {/* Role Selector */}
-      <div className="space-y-3">
-        <label className="text-silver text-sm font-medium">Loại tài khoản</label>
-        <div className="grid grid-cols-3 gap-2">
-          {roleOptions.map(role => (
-            <motion.button
-              key={role.id}
-              type="button"
-              onClick={() => setSelectedRole(role.id as UserRole)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className={clsx(
-                'px-3 py-2 rounded-lg font-medium text-sm transition-all',
-                selectedRole === role.id
-                  ? 'glass-active border-cyan'
-                  : 'glass-panel hover:border-white/20'
-              )}
-            >
-              {role.icon}
-            </motion.button>
-          ))}
+      {errorMsg && (
+        <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg text-center">
+          {errorMsg}
         </div>
-      </div>
+      )}
 
       {/* Email Input */}
       <div className="space-y-2">
@@ -214,16 +196,6 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         Đăng nhập với Google
       </button>
 
-      {/* Register Link */}
-      <p className="text-center text-silver/60 text-sm">
-        Chưa có tài khoản?{' '}
-        <button
-          type="button"
-          className="text-cyan hover:text-cyan/80 font-semibold transition-colors"
-        >
-          Đăng ký ngay
-        </button>
-      </p>
 
       {/* Toast Notification */}
       {showToast && (

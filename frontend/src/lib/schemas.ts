@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const loginSchema = z.object({
   email: z.string().email('Email không hợp lệ'),
   password: z.string().min(6, 'Tối thiểu 6 ký tự'),
-  role: z.enum(['customer', 'vendor', 'admin']),
+  role: z.enum(['customer', 'vendor', 'admin']).optional(),
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;

@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Star, MapPin, Phone, Mail, Edit2, Check, X, Plus, Trash2, GripHorizontal } from 'lucide-react';
+import { Star, MapPin, Phone, Mail, Edit2, Check, X, Plus, Trash2, GripHorizontal, Upload, Loader } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '../../store/authStore';
+import api from '../../services/api';
 import { Avatar } from '../../components/ui/Avatar';
 import { Tabs, type TabItem } from '../../components/ui/Tabs';
 import { FileUpload } from '../../components/ui/FileUpload';
+import { uploadToCloudinary, optimizeCloudinaryUrl } from '../../services/cloudinary';
 
 interface EditableFieldProps {
   label: string;
@@ -18,10 +20,21 @@ interface EditableFieldProps {
 function EditableField({ label, value, icon, onSave, multiline }: EditableFieldProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleSave = () => {
-    onSave(editValue);
-    setIsEditing(false);
+  const handleSave = async () => {
+    setIsSaving(true);
+    setErrorMsg(null);
+    try {
+      // Support async onSave; wait for validation/api and only close on success
+      await onSave(editValue);
+      setIsEditing(false);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Lưu thất bại');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -52,22 +65,25 @@ function EditableField({ label, value, icon, onSave, multiline }: EditableFieldP
       </div>
 
       {isEditing ? (
-        <div className="flex gap-2 ml-4">
+        <div className="flex gap-2 ml-4 items-center">
           <button
             onClick={handleSave}
-            className="text-emerald-400 hover:text-emerald-300 transition-colors p-2 flex-shrink-0"
+            disabled={isSaving}
+            className="text-emerald-400 hover:text-emerald-300 transition-colors p-2 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Check className="w-5 h-5" />
+            {isSaving ? <Loader className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
           </button>
           <button
             onClick={() => {
               setEditValue(value);
               setIsEditing(false);
             }}
-            className="text-red-400 hover:text-red-300 transition-colors p-2 flex-shrink-0"
+            disabled={isSaving}
+            className="text-red-400 hover:text-red-300 transition-colors p-2 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X className="w-5 h-5" />
           </button>
+          {errorMsg && <p className="text-sm text-red-400 ml-2">{errorMsg}</p>}
         </div>
       ) : (
         <button
@@ -81,9 +97,12 @@ function EditableField({ label, value, icon, onSave, multiline }: EditableFieldP
   );
 }
 
-export function VendorProfile() {
-  const { user, updateProfile } = useAuthStore();
+export function VendorProfile({ showToast }: { showToast?: (msg: string, type?: 'success' | 'error' | 'info') => void }) {
+  const { user, updateProfile, setUser } = useAuthStore();
   const [portfolio, setPortfolio] = useState<string[]>(user?.portfolio || []);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const avatarInputRef = React.useRef<HTMLInputElement>(null);
 
   if (!user) {
     return <div>Chưa đăng nhập</div>;
@@ -93,10 +112,206 @@ export function VendorProfile() {
     await updateProfile({ [field]: value });
   };
 
+  // wrap updateProfile to show toast feedback
+  const handleSaveProfileField = async (field: string, value: string) => {
+    try {
+      await updateProfile({ [field]: value });
+      showToast?.('Cập nhật thành công', 'success');
+    } catch (err: any) {
+      showToast?.(err?.response?.data?.message || 'Lỗi khi cập nhật', 'error');
+      throw err;
+    }
+  };
+
+  const handleSaveVendorBio = async (value: string) => {
+    // Client-side validation: ensure required fields are present before sending
+    const companyName = vendor?.companyName || user.companyName || '';
+    const taxId = vendor?.taxId || user.taxId || '';
+    const companyAddress = vendor?.companyAddress || user.companyAddress || '';
+
+    if (!companyName.trim() || !taxId.trim() || !companyAddress.trim()) {
+      const msg = 'Vui lòng cung cấp Tên công ty, Mã số thuế và Địa chỉ trước khi cập nhật mô tả.';
+      showToast?.(msg, 'error');
+      throw new Error(msg);
+    }
+
+    try {
+      const payload = {
+        companyName: companyName.trim(),
+        taxId: taxId.trim(),
+        companyAddress: companyAddress.trim(),
+        businessLicense: vendor?.businessLicense || '',
+        phone: vendor?.phone || user.phone || '',
+        email: vendor?.email || user.email || '',
+        website: vendor?.website || '',
+        bio: value,
+        avatar: vendor?.avatar || user.avatar || ''
+      };
+
+      const res = await api.post('/vendor/submit-info', payload);
+      // refresh vendor state
+      const refreshed = await api.get('/vendor/info');
+      setVendor(refreshed.data.vendor);
+      showToast?.('Cập nhật mô tả doanh nghiệp thành công', 'success');
+
+      // If backend returned updated user info (unlikely), update local store
+      if (res.data?.vendor && res.data.vendor.userId) {
+        // no-op for now; user store doesn't keep vendor-level fields
+      }
+    } catch (err: any) {
+      console.error('Lỗi cập nhật mô tả vendor:', err?.response?.data || err);
+      showToast?.(err?.response?.data?.message || 'Lỗi khi cập nhật mô tả', 'error');
+      throw err;
+    }
+  };
+
+  const validateEmail = (email: string) => {
+    const re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\\.,;:\s@\"]+\.)+[^<>()[\]\\.,;:\s@\"]{2,})$/i;
+    return re.test(String(email).toLowerCase());
+  };
+
+  const validatePhone = (phone: string) => {
+    const digits = phone.replace(/\D/g, '');
+    return digits.length === 10;
+  };
+
+  const handleSaveVendorField = async (field: string, value: string) => {
+    // If updating phone or email, delegate to profile update
+    if (field === 'phone') {
+      if (!validatePhone(value)) {
+        const msg = 'Số điện thoại phải gồm 10 chữ số.';
+        showToast?.(msg, 'error');
+        throw new Error(msg);
+      }
+      await handleSaveProfileField('phone', value);
+      // also sync phone into vendor document so vendor.phone matches user.phone
+      try {
+        const payload = {
+          companyName: vendor?.companyName || user.companyName || '',
+          taxId: vendor?.taxId || user.taxId || '',
+          companyAddress: vendor?.companyAddress || user.companyAddress || '',
+          businessLicense: vendor?.businessLicense || '',
+          phone: value,
+          email: vendor?.email || user.email || '',
+          website: vendor?.website || '',
+          bio: vendor?.bio || '',
+          avatar: vendor?.avatar || user.avatar || ''
+        };
+        await api.post('/vendor/submit-info', payload);
+      } catch (err) {
+        // non-fatal: log and continue to refresh
+        console.error('Failed to sync phone to vendor:', err);
+      }
+      // refresh vendor info
+      const refreshed = await api.get('/vendor/info').catch(() => null);
+      if (refreshed?.data?.vendor) setVendor(refreshed.data.vendor);
+      return;
+    }
+
+    if (field === 'email') {
+      if (!validateEmail(value)) {
+        const msg = 'Email không hợp lệ.';
+        showToast?.(msg, 'error');
+        throw new Error(msg);
+      }
+      await handleSaveProfileField('email', value);
+      // sync email to vendor record as well
+      try {
+        const payload = {
+          companyName: vendor?.companyName || user.companyName || '',
+          taxId: vendor?.taxId || user.taxId || '',
+          companyAddress: vendor?.companyAddress || user.companyAddress || '',
+          businessLicense: vendor?.businessLicense || '',
+          phone: vendor?.phone || user.phone || '',
+          email: value,
+          website: vendor?.website || '',
+          bio: vendor?.bio || '',
+          avatar: vendor?.avatar || user.avatar || ''
+        };
+        await api.post('/vendor/submit-info', payload);
+      } catch (err) {
+        console.error('Failed to sync email to vendor:', err);
+      }
+      const refreshed = await api.get('/vendor/info').catch(() => null);
+      if (refreshed?.data?.vendor) setVendor(refreshed.data.vendor);
+      return;
+    }
+
+    // For vendor-level fields (companyAddress, website), ensure required vendor identity fields exist
+    const companyName = vendor?.companyName || user.companyName || '';
+    const taxId = vendor?.taxId || user.taxId || '';
+    const companyAddress = field === 'companyAddress' ? value : (vendor?.companyAddress || user.companyAddress || '');
+
+    if (!companyName.trim() || !taxId.trim() || !companyAddress.trim()) {
+      const msg = 'Vui lòng đảm bảo Tên công ty, Mã số thuế và Địa chỉ đã được điền trước khi cập nhật.';
+      showToast?.(msg, 'error');
+      throw new Error(msg);
+    }
+
+    try {
+      const payload: any = {
+        companyName: companyName.trim(),
+        taxId: taxId.trim(),
+        companyAddress: companyAddress.trim(),
+        businessLicense: vendor?.businessLicense || '',
+        phone: vendor?.phone || user.phone || '',
+        email: vendor?.email || user.email || '',
+        website: vendor?.website || '',
+        bio: vendor?.bio || '' ,
+        avatar: vendor?.avatar || user.avatar || ''
+      };
+
+      payload[field] = value;
+
+      const res = await api.post('/vendor/submit-info', payload);
+      const refreshed = await api.get('/vendor/info');
+      setVendor(refreshed.data.vendor);
+      showToast?.('Cập nhật thành công', 'success');
+      return res;
+    } catch (err: any) {
+      showToast?.(err?.response?.data?.message || 'Lỗi khi cập nhật', 'error');
+      throw err;
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAvatar(true);
+    setAvatarError(null);
+
+    try {
+      const uploadedImage = await uploadToCloudinary(file, 'eventflow/vendor-avatars');
+      const optimizedUrl = optimizeCloudinaryUrl(uploadedImage.secure_url, 200, 200, 85);
+      await updateProfile({ avatar: optimizedUrl });
+    } catch (error) {
+      setAvatarError(error instanceof Error ? error.message : 'Lỗi tải lên avatar');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   const handlePortfolioUpload = (files: File[]) => {
     // In real app, upload files and get URLs
     console.log('Portfolio files:', files);
   };
+
+  const [vendor, setVendor] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchVendor = async () => {
+      try {
+        const res = await api.get('/vendor/info');
+        setVendor(res.data.vendor);
+      } catch (err) {
+        // silently ignore; vendor may not exist yet
+        setVendor(null);
+      }
+    };
+
+    if (user?.role === 'vendor') fetchVendor();
+  }, [user]);
 
   const tabs: TabItem[] = [
     {
@@ -104,43 +319,58 @@ export function VendorProfile() {
       label: 'Thông tin doanh nghiệp',
       content: (
         <div className="space-y-4">
-          <EditableField
-            label="Tên công ty"
-            value={user.companyName || ''}
-            onSave={(val) => handleSaveField('companyName', val)}
-          />
-          <EditableField
-            label="Mã số thuế"
-            value={user.taxId || ''}
-            onSave={(val) => handleSaveField('taxId', val)}
-          />
+          {/* Business info is read-only and sourced from the approved vendor collection when available */}
+          <div className="glass-panel px-6 py-4 rounded-xl">
+            <p className="text-silver/60 text-sm">Tên công ty</p>
+            <p className="text-white font-medium mt-1">{vendor?.companyName || user.companyName || 'Chưa cập nhật'}</p>
+          </div>
+
+          <div className="glass-panel px-6 py-4 rounded-xl">
+            <p className="text-silver/60 text-sm">Mã số thuế</p>
+            <p className="text-white font-medium mt-1">{vendor?.taxId || user.taxId || 'Chưa cập nhật'}</p>
+          </div>
+
           <EditableField
             label="Địa chỉ"
-            value={user.companyAddress || ''}
-            onSave={(val) => handleSaveField('companyAddress', val)}
+            value={vendor?.companyAddress || user.companyAddress || ''}
+            onSave={(val) => handleSaveVendorField('companyAddress', val)}
+            icon={<MapPin className="w-5 h-5" />}
           />
+
           <EditableField
             label="Số điện thoại"
-            value={user.phone || ''}
-            onSave={(val) => handleSaveField('phone', val)}
+            value={vendor?.phone || user.phone || ''}
+            onSave={(val) => handleSaveVendorField('phone', val)}
+            icon={<Phone className="w-5 h-5" />}
           />
+
           <EditableField
             label="Email liên hệ"
-            value={user.email || ''}
-            onSave={(val) => handleSaveField('email', val)}
+            value={vendor?.email || user.email || ''}
+            onSave={(val) => handleSaveVendorField('email', val)}
+            icon={<Mail className="w-5 h-5" />}
           />
+
+          <EditableField
+            label="Website"
+            value={vendor?.website || ''}
+            onSave={(val) => handleSaveVendorField('website', val)}
+            icon={<MapPin className="w-5 h-5" />}
+          />
+
           <EditableField
             label="Mô tả doanh nghiệp"
-            value={user.bio || ''}
+            value={vendor?.bio || user.bio || ''}
             multiline
-            onSave={(val) => handleSaveField('bio', val)}
+            onSave={(val) => handleSaveVendorBio(val)}
           />
+
           <div className="glass-panel px-6 py-4 rounded-xl">
             <label className="text-silver text-sm font-medium">Loại sự kiện</label>
             <div className="flex gap-4 mt-3">
               {['Corporate', 'Birthday', 'Wedding'].map(type => (
-                <label key={type} className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" className="w-4 h-4 accent-cyan" />
+                <label key={type} className="flex items-center gap-2">
+                  <input type="checkbox" className="w-4 h-4 accent-cyan" checked={false} readOnly />
                   <span className="text-white">{type}</span>
                 </label>
               ))}
@@ -306,7 +536,7 @@ export function VendorProfile() {
               transition={{ delay: 0.2 }}
               className="glass-panel p-8 rounded-2xl"
             >
-              <div className="mb-4 relative">
+              <div className="mb-4 relative inline-block mx-auto">
                 <Avatar
                   src={user.avatar}
                   alt={user.companyName}
@@ -314,10 +544,35 @@ export function VendorProfile() {
                   ring
                   className="mx-auto"
                 />
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                  className={clsx(
+                    'absolute bottom-0 right-0 bg-cyan text-navy p-2 rounded-full',
+                    'hover:bg-cyan/80 transition-all shadow-lg',
+                    isUploadingAvatar && 'opacity-50 cursor-not-allowed'
+                  )}
+                >
+                  {isUploadingAvatar ? (
+                    <Loader className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Upload className="w-5 h-5" />
+                  )}
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                />
                 <div className="absolute top-0 right-0 px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-full text-emerald-300 text-xs font-semibold">
                   Đang hoạt động
                 </div>
               </div>
+              {avatarError && (
+                <p className="text-red-400 text-sm mb-2 text-center">{avatarError}</p>
+              )}
               <h2 className="font-display text-2xl text-white mb-2 text-center">{user.companyName}</h2>
               <div className="flex justify-center items-center gap-1 mb-4">
                 {[...Array(5)].map((_, i) => (
@@ -325,8 +580,15 @@ export function VendorProfile() {
                 ))}
                 <span className="text-silver/60 text-xs ml-2">(256 đánh giá)</span>
               </div>
-              <button className="w-full py-2 rounded-lg bg-gradient-to-r from-cyan to-cyan/70 text-navy font-semibold hover:shadow-lg hover:shadow-cyan/30 transition-all">
-                Chỉnh sửa hồ sơ
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={isUploadingAvatar}
+                className={clsx(
+                  'w-full py-2 rounded-lg bg-gradient-to-r from-cyan to-cyan/70 text-navy font-semibold hover:shadow-lg hover:shadow-cyan/30 transition-all',
+                  isUploadingAvatar && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                {isUploadingAvatar ? 'Đang tải...' : 'Chỉnh sửa ảnh'}
               </button>
             </motion.div>
 

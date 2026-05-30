@@ -4,19 +4,31 @@ import { useNavigate } from 'react-router-dom';
 import { LoginForm } from '../../components/features/auth/LoginForm';
 import { RegisterForm } from '../../components/features/auth/RegisterForm';
 import type { UserRole } from '../../store/authStore';
+import api from '../../services/api';
 
 export function LoginPage() {
   const [showRegister, setShowRegister] = useState(false);
   const navigate = useNavigate();
 
-  const handleLoginSuccess = (role: UserRole) => {
-    setTimeout(() => {
+  const handleLoginSuccess = async (role: UserRole) => {
+    setTimeout(async () => {
       switch (role) {
         case 'admin':
           navigate('/admin/dashboard');
           break;
         case 'vendor':
-          navigate('/vendor/dashboard');
+          // Check if vendor has active subscription
+          try {
+            const response = await api.get('/subscription/status');
+            if (response.data.hasActiveSubscription) {
+              navigate('/vendor/dashboard');
+            } else {
+              navigate('/vendor/subscription');
+            }
+          } catch (err) {
+            // If error, redirect to subscription page to be safe
+            navigate('/vendor/subscription');
+          }
           break;
         case 'customer':
           navigate('/explore');
@@ -34,7 +46,8 @@ export function LoginPage() {
           navigate('/admin/dashboard');
           break;
         case 'vendor':
-          navigate('/vendor/dashboard');
+          // New vendors go to subscription page
+          navigate('/vendor/subscription');
           break;
         case 'customer':
           navigate('/explore');

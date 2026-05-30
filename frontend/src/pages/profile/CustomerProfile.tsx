@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, Mail, Phone, MapPin, Calendar, Edit2, Check, X } from 'lucide-react';
+import { Heart, Mail, Phone, MapPin, Calendar, Edit2, Check, X, Upload, Loader } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '../../store/authStore';
 import { Avatar } from '../../components/ui/Avatar';
 import { Tabs, type TabItem } from '../../components/ui/Tabs';
 import { PasswordStrength } from '../../components/ui/PasswordStrength';
+import { uploadToCloudinary, optimizeCloudinaryUrl } from '../../services/cloudinary';
 
 interface EditableFieldProps {
   label: string;
@@ -76,6 +77,9 @@ export function CustomerProfile() {
   const { user, updateProfile } = useAuthStore();
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const avatarInputRef = React.useRef<HTMLInputElement>(null);
 
   if (!user) {
     return <div>Chưa đăng nhập</div>;
@@ -83,6 +87,24 @@ export function CustomerProfile() {
 
   const handleSaveField = async (field: string, value: string) => {
     await updateProfile({ [field]: value });
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAvatar(true);
+    setAvatarError(null);
+
+    try {
+      const uploadedImage = await uploadToCloudinary(file, 'eventflow/avatars');
+      const optimizedUrl = optimizeCloudinaryUrl(uploadedImage.secure_url, 200, 200, 85);
+      await updateProfile({ avatar: optimizedUrl });
+    } catch (error) {
+      setAvatarError(error instanceof Error ? error.message : 'Lỗi tải lên avatar');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   };
 
   const tabs: TabItem[] = [
@@ -202,7 +224,7 @@ export function CustomerProfile() {
               transition={{ delay: 0.2 }}
               className="glass-panel p-8 rounded-2xl text-center"
             >
-              <div className="mb-4">
+              <div className="mb-4 relative inline-block">
                 <Avatar
                   src={user.avatar}
                   alt={user.name}
@@ -210,7 +232,32 @@ export function CustomerProfile() {
                   ring
                   className="mx-auto"
                 />
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                  className={clsx(
+                    'absolute bottom-0 right-0 bg-cyan text-navy p-2 rounded-full',
+                    'hover:bg-cyan/80 transition-all shadow-lg',
+                    isUploadingAvatar && 'opacity-50 cursor-not-allowed'
+                  )}
+                >
+                  {isUploadingAvatar ? (
+                    <Loader className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Upload className="w-5 h-5" />
+                  )}
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                />
               </div>
+              {avatarError && (
+                <p className="text-red-400 text-sm mb-2">{avatarError}</p>
+              )}
               <h2 className="font-display text-2xl text-white mb-1">{user.name}</h2>
               <p className="text-silver/60 text-sm mb-4">{user.email}</p>
               <p className="text-silver/40 text-xs">

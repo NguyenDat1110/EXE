@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { Search, CalendarDays, LogOut, Bell } from 'lucide-react';
+import { Search, CalendarDays, LogOut, Bell, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function CustomerLayout() {
@@ -104,6 +104,14 @@ export function CustomerLayout() {
                         className="block w-full text-left px-3 py-2 text-silver hover:text-cyan hover:bg-white/5 rounded-lg transition-all text-sm"
                       >
                         Đơn đặt của tôi
+                      </Link>
+                      <Link
+                        to="/profile"
+                        onClick={() => setShowProfileMenu(false)}
+                        className="block w-full text-left px-3 py-2 text-silver hover:text-cyan hover:bg-white/5 rounded-lg transition-all text-sm flex items-center gap-2"
+                      >
+                        <User className="w-4 h-4" />
+                        Hồ sơ cá nhân
                       </Link>
                       <button
                         onClick={() => {

@@ -1,30 +1,104 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, XCircle, Eye, FileText, ShieldCheck, X } from 'lucide-react';
+import { CheckCircle2, XCircle, Eye, FileText, ShieldCheck, X, Loader, AlertCircle } from 'lucide-react';
+import { getPendingVendors, approveVendor, rejectVendor } from '../../services/adminApi';
 
-const mockVendors = [
-  { id: 1, name: 'Lumina Events', date: '20/10/2024', status: 'pending', logo: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD82RtNeC6UIQ7eV7VhnKG6fbIF290wz0vEhN4vpeoFwgilwMcAtdGN-FBoDFY_fIwHtP4lN1eCyafLvH5Z2oWwl3x9o4Zl0cH15srw1c9ZCQQKZP9oqjB4NyvnkRdwuwVFv-rPHZAJbOG5tnRFiNDIZA5qq9CLN2MPUJxEaLpGlb3VlUvRYxOm61M3dAztUR4ELE5Aae6nswf0eix8qbIbwPeHsL38GogmaVLtvCTSRvT_wjxb9VmeNzj91XQpt0ogxg0WWoIzArsp', images: ['https://lh3.googleusercontent.com/aida-public/AB6AXuC_OYhVvyQSsbCQ4iHmmL5Xw0oYTLovxwHlMsTPxuuv9xGj2N-Lk5-W5C0X6MXlQUtPtbF9H7PXicjKEPr-KyN4kmHDrtYI0Xottda9hrBY3PEm_IXplI8VfUkXGnDrm5zk5NK6wOgnw0Tz29VeDjeZ8cmCjS6WYMM-DOH_XQnQ77lXC5BT2g6CCSoz6UhxjILgabC3ublJOOJJrkIT4-xQi19vALmqs0-WHfHjpQVfOe8QDk7-vFbnxaFvJxKCOTr6q4ON3lM9yOUp', 'https://lh3.googleusercontent.com/aida-public/AB6AXuBB-a1GfhArV_6OIT-eU77u4aK2EmaD7_JXRXLU4Fy4ICqeAxbfFmJoFoZXKiHivg12PjhsZzhflKOIIiLrsP28gBFIvePI0--9F4HGdmEoKWs_CeshcN02dhH7gScnQFgqUDiAe4pGfGQFhsgW3k8Jr_cJ7WD1mzC_QtpcQLU9VEUmnbhYgorZQJkG1iIEZwcQ4jKc3a713dgu5-vYpBdQP8Jyn4oYBgp_D9Nbl-MlvD7YBooXEFPNqsdPV_nTOolu58XqbVt1fbOT', 'https://lh3.googleusercontent.com/aida-public/AB6AXuCO942zfFetWifa-AMjmMD9U-ziMEIVYzDYKO7TemxNVxzJ0GKiVGgPOskcYFFGqpQrAoFpANxZHzcexy_RIfAzZEiI2R1aNq8WcY6DJIiahxNgYVpIP2GNTjeqnGq3xbKQvuCYmF7hM2Tzk90PR7_NIYL-uXnQQW-1TOPWafS4dXO3BdpYEU-JdDfUR3qWonNr0gWniiuq6OEaS-DHLKtchlVAI8WFVmIDkLWPv1aKVGW9yzq4NBMpnAlCp_3822O8GEs_3OcO0C25'] },
-  { id: 2, name: 'Glow Decor', date: '18/10/2024', status: 'pending', logo: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDSSdtH06b-33mo_UkMnC7Gt4nmeERhVsMTuwunstZSGQnE_CKzltg2a93wLbTYgP6ZIQA8scDmZ85fnNixfB0GQg9y3QhlpgPZyRC-uNKYHZPXLVs7JQ7Xs9aYavO6iEW8bSs5l3W78NCnsZm7ssH5e_LGf3fqadREGf5jhFwNOLF7OOlKK0BPSHWCuNjcCR12mV7ZgTqnzOgRWsBQWiOZNeR7UvVuCv4HLUuZM0liKTb2FMwgIN991JKLDUTuWY1x8IMHLRdakGzS', images: ['https://lh3.googleusercontent.com/aida-public/AB6AXuD82RtNeC6UIQ7eV7VhnKG6fbIF290wz0vEhN4vpeoFwgilwMcAtdGN-FBoDFY_fIwHtP4lN1eCyafLvH5Z2oWwl3x9o4Zl0cH15srw1c9ZCQQKZP9oqjB4NyvnkRdwuwVFv-rPHZAJbOG5tnRFiNDIZA5qq9CLN2MPUJxEaLpGlb3VlUvRYxOm61M3dAztUR4ELE5Aae6nswf0eix8qbIbwPeHsL38GogmaVLtvCTSRvT_wjxb9VmeNzj91XQpt0ogxg0WWoIzArsp', 'https://lh3.googleusercontent.com/aida-public/AB6AXuC_OYhVvyQSsbCQ4iHmmL5Xw0oYTLovxwHlMsTPxuuv9xGj2N-Lk5-W5C0X6MXlQUtPtbF9H7PXicjKEPr-KyN4kmHDrtYI0Xottda9hrBY3PEm_IXplI8VfUkXGnDrm5zk5NK6wOgnw0Tz29VeDjeZ8cmCjS6WYMM-DOH_XQnQ77lXC5BT2g6CCSoz6UhxjILgabC3ublJOOJJrkIT4-xQi19vALmqs0-WHfHjpQVfOe8QDk7-vFbnxaFvJxKCOTr6q4ON3lM9yOUp', 'https://lh3.googleusercontent.com/aida-public/AB6AXuBB-a1GfhArV_6OIT-eU77u4aK2EmaD7_JXRXLU4Fy4ICqeAxbfFmJoFoZXKiHivg12PjhsZzhflKOIIiLrsP28gBFIvePI0--9F4HGdmEoKWs_CeshcN02dhH7gScnQFgqUDiAe4pGfGQFhsgW3k8Jr_cJ7WD1mzC_QtpcQLU9VEUmnbhYgorZQJkG1iIEZwcQ4jKc3a713dgu5-vYpBdQP8Jyn4oYBgp_D9Nbl-MlvD7YBooXEFPNqsdPV_nTOolu58XqbVt1fbOT'] },
-];
+interface Vendor {
+  _id: string;
+  companyName: string;
+  email: string;
+  avatar?: string;
+  businessLicense: string;
+  companyAddress: string;
+  phone: string;
+  taxId: string;
+  verificationStatus: 'pending' | 'approved' | 'rejected';
+  verificationReason?: string;
+  createdAt: string;
+  userId?: {
+    name: string;
+  };
+}
 
 export default function VerificationQueue({ showToast }: { showToast: (msg: string, type?: 'success' | 'error' | 'info') => void }) {
   const [activeTab, setActiveTab] = useState('pending');
-  const [selectedVendor, setSelectedVendor] = useState<any>(null);
+  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [counts, setCounts] = useState({ pending: 0, approved: 0, rejected: 0 });
 
-  const handleApprove = () => {
-    setSelectedVendor(null);
-    showToast('Đã cấp huy hiệu xác thực cho vendor', 'success');
+  useEffect(() => {
+    loadVendors();
+  }, [activeTab]);
+
+  const loadVendors = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await getPendingVendors(activeTab, 1, 50);
+      setVendors(response.data || []);
+      
+      // Update counts
+      const pending = await getPendingVendors('pending', 1, 1);
+      const approved = await getPendingVendors('approved', 1, 1);
+      const rejected = await getPendingVendors('rejected', 1, 1);
+      
+      setCounts({
+        pending: pending.pagination?.total || 0,
+        approved: approved.pagination?.total || 0,
+        rejected: rejected.pagination?.total || 0
+      });
+    } catch (err) {
+      setError('Lỗi tải danh sách vendor');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReject = () => {
-    setSelectedVendor(null);
-    showToast('Đã từ chối hồ sơ vendor', 'error');
+  const handleApprove = async () => {
+    if (!selectedVendor) return;
+    
+    setIsProcessing(true);
+    try {
+      await approveVendor(selectedVendor._id);
+      showToast('Đã phê duyệt vendor thành công', 'success');
+      setSelectedVendor(null);
+      await loadVendors();
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Lỗi phê duyệt vendor', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!selectedVendor || !rejectionReason.trim()) {
+      showToast('Vui lòng nhập lý do từ chối', 'error');
+      return;
+    }
+    
+    setIsProcessing(true);
+    try {
+      await rejectVendor(selectedVendor._id, rejectionReason);
+      showToast('Đã từ chối hồ sơ vendor', 'success');
+      setSelectedVendor(null);
+      setRejectionReason('');
+      await loadVendors();
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Lỗi từ chối vendor', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const tabs = [
-    { id: 'pending', label: 'Đang Chờ', count: 2 },
-    { id: 'approved', label: 'Đã Duyệt', count: 15 },
-    { id: 'rejected', label: 'Từ Chối', count: 3 },
+    { id: 'pending', label: 'Đang Chờ', count: counts.pending },
+    { id: 'approved', label: 'Đã Duyệt', count: counts.approved },
+    { id: 'rejected', label: 'Từ Chối', count: counts.rejected },
   ];
 
   return (
@@ -57,45 +131,82 @@ export default function VerificationQueue({ showToast }: { showToast: (msg: stri
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {mockVendors.map(vendor => (
-          <div key={vendor.id} className="glass-card rounded-2xl p-6 flex flex-col">
-            <div className="flex items-start gap-4 mb-6">
-              <img src={vendor.logo} alt={vendor.name} className="w-16 h-16 rounded-xl object-cover border border-white/10" />
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-white">{vendor.name}</h3>
-                <p className="text-sm text-slate-400">Ngày nộp: {vendor.date}</p>
-              </div>
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
-                Chờ duyệt
-              </span>
-            </div>
+      {error && (
+        <div className="glass-card p-4 rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 flex items-center gap-2">
+          <AlertCircle className="w-5 h-5" />
+          {error}
+        </div>
+      )}
 
-            <div className="mb-6">
-              <h4 className="text-sm font-medium text-slate-300 mb-3">Preview Portfolio</h4>
-              <div className="grid grid-cols-3 gap-2">
-                {vendor.images.map((img, idx) => (
-                  <img key={idx} src={img} alt={`Portfolio ${idx}`} className="w-full aspect-square object-cover rounded-lg border border-white/5" />
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 mb-6 text-sm">
-              <FileText className="w-4 h-4 text-primary" />
-              <a href="#" className="text-primary hover:underline">Giấy phép kinh doanh (PDF)</a>
-            </div>
-
-            <div className="flex gap-3 mt-auto pt-4 border-t border-white/10">
-              <button 
-                onClick={() => setSelectedVendor(vendor)}
-                className="flex-1 py-2 glass-card text-white font-medium rounded-lg hover:bg-white/10 transition-colors flex items-center justify-center gap-2 text-sm"
-              >
-                <Eye className="w-4 h-4" /> Xem Hồ Sơ Đầy Đủ
-              </button>
-            </div>
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <div className="text-center">
+            <Loader className="w-8 h-8 text-primary animate-spin mx-auto mb-2" />
+            <p className="text-slate-400">Đang tải danh sách vendor...</p>
           </div>
-        ))}
-      </div>
+        </div>
+      ) : vendors.length === 0 ? (
+        <div className="glass-card p-12 rounded-2xl text-center">
+          <p className="text-slate-400">Không có vendor nào ở trạng thái này</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {vendors.map(vendor => (
+            <div key={vendor._id} className="glass-card rounded-2xl p-6 flex flex-col">
+              <div className="flex items-start gap-4 mb-6">
+                <img src={vendor.avatar || 'https://via.placeholder.com/64'} alt={vendor.companyName} className="w-16 h-16 rounded-xl object-cover border border-white/10" />
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-white">{vendor.companyName}</h3>
+                  <p className="text-sm text-slate-400">Ngày nộp: {new Date(vendor.createdAt).toLocaleDateString('vi-VN')}</p>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                  vendor.verificationStatus === 'pending' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+                  vendor.verificationStatus === 'approved' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                  'bg-red-500/20 text-red-300 border border-red-500/30'
+                }`}>
+                  {vendor.verificationStatus === 'pending' ? 'Chờ duyệt' :
+                   vendor.verificationStatus === 'approved' ? 'Đã duyệt' : 'Từ chối'}
+                </span>
+              </div>
+
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-slate-300 mb-3">Thông tin công ty</h4>
+                <div className="space-y-2 text-sm text-slate-400">
+                  <p>MST: {vendor.taxId}</p>
+                  <p>Địa chỉ: {vendor.companyAddress}</p>
+                  <p>SĐT: {vendor.phone}</p>
+                  <p>Email: {vendor.email}</p>
+                </div>
+              </div>
+
+              {vendor.businessLicense && (
+                <div className="flex items-center gap-3 mb-6 text-sm">
+                  <FileText className="w-4 h-4 text-primary" />
+                  <a href={vendor.businessLicense} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Giấy phép kinh doanh</a>
+                </div>
+              )}
+
+              {vendor.verificationStatus === 'rejected' && vendor.verificationReason && (
+                <div className="mb-6 p-3 bg-red-500/10 border border-red-500/30 rounded text-sm text-red-300">
+                  <p className="font-semibold mb-1">Lý do từ chối:</p>
+                  <p>{vendor.verificationReason}</p>
+                </div>
+              )}
+
+              {activeTab === 'pending' && (
+                <div className="flex gap-3 mt-auto pt-4 border-t border-white/10">
+                  <button 
+                    onClick={() => setSelectedVendor(vendor)}
+                    className="flex-1 py-2 glass-card text-white font-medium rounded-lg hover:bg-white/10 transition-colors flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Eye className="w-4 h-4" /> Xem Hồ Sơ
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Modal */}
       <AnimatePresence>
@@ -113,52 +224,65 @@ export default function VerificationQueue({ showToast }: { showToast: (msg: stri
               className="glass-card rounded-2xl w-full max-w-3xl bg-background-dark overflow-hidden flex flex-col max-h-[90vh]"
             >
               <div className="p-6 border-b border-white/10 flex justify-between items-center sticky top-0 bg-background-dark/80 backdrop-blur-md z-10">
-                <h2 className="text-xl font-bold text-white">Chi Tiết Hồ Sơ: {selectedVendor.name}</h2>
-                <button onClick={() => setSelectedVendor(null)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+                <h2 className="text-xl font-bold text-white">Chi Tiết Hồ Sơ: {selectedVendor.companyName}</h2>
+                <button onClick={() => setSelectedVendor(null)} className="p-2 rounded-full hover:bg-white/10 transition-colors" disabled={isProcessing}>
                   <X className="w-5 h-5 text-slate-400" />
                 </button>
               </div>
 
               <div className="p-6 overflow-y-auto space-y-8">
-                {/* Vendor details mock */}
                 <div className="flex items-start gap-6">
-                  <img src={selectedVendor.logo} alt={selectedVendor.name} className="w-24 h-24 rounded-xl object-cover border border-white/10" />
-                  <div>
-                    <h3 className="text-2xl font-serif text-white mb-2">{selectedVendor.name}</h3>
-                    <p className="text-slate-400 mb-4">Chuyên gia trong lĩnh vực thiết kế và thi công sự kiện cao cấp. Với hơn 5 năm kinh nghiệm...</p>
-                    <div className="flex gap-4 text-sm text-slate-300">
-                      <span>MST: 0312345678</span>
-                      <span>SĐT: 0901234567</span>
-                      <span>Email: contact@lumina.vn</span>
+                  <img src={selectedVendor.avatar || 'https://via.placeholder.com/96'} alt={selectedVendor.companyName} className="w-24 h-24 rounded-xl object-cover border border-white/10" />
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold text-white mb-2">{selectedVendor.companyName}</h3>
+                    <div className="space-y-1 text-sm text-slate-300">
+                      <p>MST: {selectedVendor.taxId}</p>
+                      <p>SĐT: {selectedVendor.phone}</p>
+                      <p>Email: {selectedVendor.email}</p>
+                      <p>Địa chỉ: {selectedVendor.companyAddress}</p>
                     </div>
                   </div>
                 </div>
                 
-                {/* Portfolio mock */}
-                <div>
-                  <h4 className="text-lg font-bold text-white mb-4">Portfolio</h4>
-                  <div className="grid grid-cols-3 gap-4">
-                    {selectedVendor.images.map((img: string, idx: number) => (
-                      <img key={idx} src={img} alt={`Portfolio ${idx}`} className="w-full aspect-[4/3] object-cover rounded-lg border border-white/5" />
-                    ))}
+                {selectedVendor.businessLicense && (
+                  <div>
+                    <h4 className="text-lg font-bold text-white mb-3">Giấy phép kinh doanh</h4>
+                    <a href={selectedVendor.businessLicense} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-2">
+                      <FileText className="w-4 h-4" /> Xem tài liệu
+                    </a>
                   </div>
-                </div>
+                )}
               </div>
 
-              <div className="p-6 border-t border-white/10 bg-background-dark sticky bottom-0 flex gap-4">
-                <button 
-                  onClick={handleReject} 
-                  className="flex-1 py-3 glass-card text-red-400 font-bold rounded-xl hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
-                >
-                  <XCircle className="w-5 h-5" /> Từ Chối
-                </button>
-                <button 
-                  onClick={handleApprove} 
-                  className="flex-1 py-3 bg-primary text-background-dark font-bold rounded-xl hover:brightness-110 transition-all cyan-glow flex items-center justify-center gap-2"
-                >
-                  <ShieldCheck className="w-5 h-5" /> Cấp Huy Hiệu ✓
-                </button>
-              </div>
+              {selectedVendor.verificationStatus === 'pending' && (
+                <div className="p-6 border-t border-white/10 bg-background-dark sticky bottom-0 space-y-4">
+                  <textarea
+                    placeholder="Nhập lý do từ chối (nếu cần)"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    className="w-full bg-white/5 text-white px-4 py-3 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                    rows={3}
+                  />
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={handleReject}
+                      disabled={isProcessing}
+                      className="flex-1 py-3 glass-card text-red-400 font-bold rounded-xl hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isProcessing ? <Loader className="w-5 h-5 animate-spin" /> : <XCircle className="w-5 h-5" />}
+                      Từ Chối
+                    </button>
+                    <button 
+                      onClick={handleApprove}
+                      disabled={isProcessing}
+                      className="flex-1 py-3 bg-primary text-background-dark font-bold rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isProcessing ? <Loader className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
+                      Cấp Huy Hiệu ✓
+                    </button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

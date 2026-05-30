@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { Shield, Settings, Users, FileText, Wallet, LogOut, Bell, Menu, X } from 'lucide-react';
+import { Shield, Settings, Users, FileText, Wallet, LogOut, Bell, Menu, X, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function AdminLayout() {
@@ -14,6 +14,7 @@ export function AdminLayout() {
   const menuItems = [
     { label: 'Quản lý hệ thống', path: '/admin/dashboard', icon: Settings },
     { label: 'Tài khoản', path: '/admin/users', icon: Users },
+    { label: 'Phê Duyệt Vendor', path: '/admin/vendors', icon: CheckCircle },
     { label: 'Bài viết', path: '/admin/articles', icon: FileText },
     { label: 'Đối soát', path: '/admin/reconciliation', icon: Wallet },
   ];

@@ -5,8 +5,12 @@ export interface IUser extends Document {
   email: string;
   passwordHash: string;
   phone?: string;
+  avatar?: string;
+  dateOfBirth?: string;
+  address?: string;
   role: 'customer' | 'vendor' | 'admin';
   isEmailVerified: boolean;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,9 +20,13 @@ const userSchema = new Schema<IUser>(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
-    phone: { type: String },
+    phone: { type: String, default: '' },
+    avatar: { type: String, default: '' },
+    dateOfBirth: { type: String, default: '' },
+    address: { type: String, default: '' },
     role: { type: String, enum: ['customer', 'vendor', 'admin'], default: 'customer' },
-    isEmailVerified: { type: Boolean, default: false }
+    isEmailVerified: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true }
   },
   { timestamps: true }
 );

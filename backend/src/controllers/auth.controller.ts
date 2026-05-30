@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/user.model';
+import { Vendor } from '../models/vendor.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
@@ -37,12 +38,30 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       name,
       email: email.toLowerCase(),
       passwordHash,
-      phone,
+      phone: phone || '',
+      dateOfBirth: '',
+      address: '',
       role: role || 'customer'
     });
 
+    // If vendor role, create vendor record
+    if (role === 'vendor') {
+      await Vendor.create({
+        userId: newUser._id,
+        companyName: '',
+        taxId: undefined,
+        companyAddress: '',
+        businessLicense: '',
+        phone: phone || '',
+        email: email.toLowerCase(),
+        verificationStatus: 'pending',
+        isVerified: false,
+        packages: []
+      });
+    }
+
     res.status(201).json({
-      message: 'Đăng ký tài khoản thành công!',
+      message: role === 'vendor' ? 'Đăng ký vendor thành công! Vui lòng hoàn thành thông tin công ty để chúng tôi duyệt.' : 'Đăng ký tài khoản thành công!',
       user: {
         id: newUser._id,
         name: newUser.name,
@@ -70,6 +89,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
       res.status(400).json({ message: 'Email hoặc mật khẩu không chính xác.' });
+      return;
+    }
+
+    if (!user.isActive) {
+      res.status(403).json({ message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ.' });
       return;
     }
 
@@ -121,6 +145,72 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
     });
   } catch (error) {
     console.error('Get profile error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
+  }
+};
+
+// UC-06: Cập nhật thông tin cá nhân
+export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Không được phép truy cập.' });
+      return;
+    }
+
+    const { name, phone, avatar, dateOfBirth, address } = req.body;
+
+    // Validate input
+    if (name && typeof name !== 'string') {
+      res.status(400).json({ message: 'Tên không hợp lệ.' });
+      return;
+    }
+
+    if (phone && typeof phone !== 'string') {
+      res.status(400).json({ message: 'Số điện thoại không hợp lệ.' });
+      return;
+    }
+
+    if (avatar && typeof avatar !== 'string') {
+      res.status(400).json({ message: 'Avatar URL không hợp lệ.' });
+      return;
+    }
+
+    if (dateOfBirth && typeof dateOfBirth !== 'string') {
+      res.status(400).json({ message: 'Ngày sinh không hợp lệ.' });
+      return;
+    }
+
+    if (address && typeof address !== 'string') {
+      res.status(400).json({ message: 'Địa chỉ không hợp lệ.' });
+      return;
+    }
+
+    // Build update object
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name.trim();
+    if (phone !== undefined) updateData.phone = phone.trim();
+    if (avatar !== undefined) updateData.avatar = avatar;
+    if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth.trim();
+    if (address !== undefined) updateData.address = address.trim();
+
+    // Update user
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-passwordHash');
+
+    if (!updatedUser) {
+      res.status(404).json({ message: 'Không tìm thấy thông tin tài khoản.' });
+      return;
+    }
+
+    res.status(200).json({
+      message: 'Cập nhật thông tin cá nhân thành công!',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
     res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
   }
 };

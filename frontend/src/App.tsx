@@ -19,10 +19,17 @@ import { LoginPage } from './pages/auth/LoginPage';
 import Register from './pages/Register';
 import Explore from './pages/customer/Explore';
 import CustomerBookings from './pages/customer/Bookings';
+import { CustomerProfile } from './pages/profile/CustomerProfile';
+import { VendorProfile } from './pages/profile/VendorProfile';
 import VendorDashboard from './pages/vendor/Dashboard';
 import VendorPackages from './pages/vendor/Packages';
+import { VendorSubmissionStatus } from './pages/vendor/VendorSubmissionStatus';
+import { VendorSubmissionForm } from './pages/vendor/VendorSubmissionForm';
+import { SubscriptionPlans } from './pages/vendor/SubscriptionPlans';
+import { SubscriptionCheckout } from './pages/vendor/SubscriptionCheckout';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminUsers from './pages/admin/Users';
+import { AdminVendors } from './pages/admin/AdminVendors';
 import Unauthorized from './pages/Unauthorized';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -77,6 +84,7 @@ export default function App() {
               <Route element={<CustomerLayout />}>
                 <Route path="/explore" element={<Explore />} />
                 <Route path="/my-bookings" element={<CustomerBookings />} />
+                <Route path="/profile" element={<CustomerProfile />} />
               </Route>
             </Route>
           </Route>
@@ -87,6 +95,11 @@ export default function App() {
               <Route element={<VendorLayout />}>
                 <Route path="/vendor/dashboard" element={<VendorDashboard />} />
                 <Route path="/vendor/packages" element={<VendorPackages />} />
+                <Route path="/vendor/profile" element={<VendorProfile showToast={showToast} />} />
+                <Route path="/vendor/registration" element={<VendorSubmissionStatus />} />
+                <Route path="/vendor/registration/form" element={<VendorSubmissionForm />} />
+                <Route path="/vendor/subscription" element={<SubscriptionPlans />} />
+                <Route path="/vendor/subscription-checkout" element={<SubscriptionCheckout />} />
               </Route>
             </Route>
           </Route>
@@ -97,6 +110,7 @@ export default function App() {
               <Route element={<AdminLayout />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/vendors" element={<AdminVendors />} />
               </Route>
             </Route>
           </Route>

@@ -1,43 +1,111 @@
-import React from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Compass } from 'lucide-react';
+import { ExploreCategoryItem, ExploreCategorySlug, getExploreCategories } from '../../services/exploreApi';
+
+const CATEGORY_CARDS: Record<ExploreCategorySlug, { title: string; image: string; accent: string }> = {
+  wedding: {
+    title: 'Tiệc cưới',
+    image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1200&q=80&auto=format&fit=crop',
+    accent: 'from-rose-500/70'
+  },
+  seminar: {
+    title: 'Hội thảo',
+    image: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=1200&q=80&auto=format&fit=crop',
+    accent: 'from-sky-500/70'
+  },
+  birthday: {
+    title: 'Sinh nhật',
+    image: 'https://images.unsplash.com/photo-1464349153735-7db50ed83c84?w=1200&q=80&auto=format&fit=crop',
+    accent: 'from-amber-500/70'
+  },
+  anniversary: {
+    title: 'Kỷ niệm',
+    image: 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=1200&q=80&auto=format&fit=crop',
+    accent: 'from-emerald-500/70'
+  }
+};
+
+const FALLBACK_ORDER: ExploreCategorySlug[] = ['wedding', 'seminar', 'birthday', 'anniversary'];
 
 export default function Explore() {
-  const categories = [
-    { title: 'Tiệc Cưới', count: 120, img: 'https://images.unsplash.com/photo-1519671482677-504be0ffbc87?w=300&q=80' },
-    { title: 'Hội Thảo', count: 85, img: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=300&q=80' },
-    { title: 'Sinh Nhật', count: 94, img: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=300&q=80' },
-    { title: 'Kỷ Niệm', count: 62, img: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=300&q=80' },
-  ];
+  const navigate = useNavigate();
+  const [items, setItems] = useState<ExploreCategoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const data = await getExploreCategories();
+        setItems(data || []);
+      } catch (error) {
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, []);
+
+  const categories = useMemo(() => {
+    if (items.length > 0) {
+      return items
+        .filter((item) => Boolean(CATEGORY_CARDS[item.slug]))
+        .map((item) => ({
+          slug: item.slug,
+          title: CATEGORY_CARDS[item.slug].title,
+          image: CATEGORY_CARDS[item.slug].image,
+          accent: CATEGORY_CARDS[item.slug].accent,
+          count: item.count
+        }));
+    }
+
+    return FALLBACK_ORDER.map((slug) => ({
+      slug,
+      title: CATEGORY_CARDS[slug].title,
+      image: CATEGORY_CARDS[slug].image,
+      accent: CATEGORY_CARDS[slug].accent,
+      count: 0
+    }));
+  }, [items]);
 
   return (
     <div className="space-y-10">
-      <div>
+      <div className="max-w-3xl">
         <h1 className="text-4xl font-serif italic text-white flex items-center gap-3">
           <Compass className="w-8 h-8 text-cyan" />
-          Customer Explore
+          Explore
         </h1>
-        <p className="text-silver/60 mt-2 text-lg">Tìm kiếm và lựa chọn các gói dịch vụ sự kiện hoàn hảo nhất cho bạn.</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {categories.map((cat, i) => (
-          <div key={i} className="group relative h-64 rounded-2xl overflow-hidden cursor-pointer border border-white/10 hover:border-cyan/50 transition-all duration-300">
-            <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style={{ backgroundImage: `url(${cat.img})` }} />
-            <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/40 to-transparent" />
-            <div className="absolute bottom-6 left-6 right-6">
-              <span className="text-xs bg-cyan/20 border border-cyan/40 text-cyan px-2.5 py-1 rounded-full font-semibold uppercase tracking-wider">{cat.count} gói</span>
-              <h3 className="text-xl font-bold font-manrope text-white mt-2 group-hover:text-cyan transition-colors">{cat.title}</h3>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="glass-panel p-8 rounded-2xl">
-        <h2 className="text-xl font-bold text-white mb-4">Trang Customer Explore</h2>
-        <p className="text-silver/70 leading-relaxed">
-          Giao diện dành riêng cho khách hàng đã đăng nhập (hoặc khách vãng lai). Cho phép duyệt qua các chuyên mục sự kiện khác nhau, 
-          lọc theo địa điểm và mức giá, rồi đi đến chi tiết của các Vendor để đặt chỗ.
+        <p className="text-silver/70 mt-3 text-lg leading-relaxed">
+          Chọn loại sự kiện để xem danh sách gian hàng phù hợp và đi đến trang chi tiết dịch vụ.
         </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        {categories.map((cat) => (
+          <button
+            key={cat.slug}
+            onClick={() => navigate(`/explore/${cat.slug}`)}
+            className="group relative h-72 rounded-3xl overflow-hidden cursor-pointer border border-white/10 hover:border-cyan/50 transition-all duration-300 text-left"
+          >
+            <img
+              src={cat.image}
+              alt={cat.title}
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+            />
+            <div className={`absolute inset-0 bg-gradient-to-t ${cat.accent} via-navy/50 to-navy/20`} />
+            <div className="absolute inset-0 bg-gradient-to-t from-navy via-transparent to-transparent" />
+
+            <div className="absolute bottom-5 left-5 right-5">
+              <span className="inline-flex items-center rounded-full border border-white/20 bg-black/20 px-3 py-1 text-xs tracking-[0.14em] uppercase text-cyan/90">
+                {loading ? 'Đang tải...' : `${cat.count} gian hàng`}
+              </span>
+              <h3 className="text-2xl font-bold font-manrope text-white mt-3">{cat.title}</h3>
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   );

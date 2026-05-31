@@ -18,6 +18,9 @@ import LandingPage from './pages/LandingPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import Register from './pages/Register';
 import Explore from './pages/customer/Explore';
+import BoothList from './pages/customer/BoothList';
+import BoothDetail from './pages/customer/BoothDetail';
+import BookingPage from './pages/BookingPage';
 import CustomerBookings from './pages/customer/Bookings';
 import { CustomerProfile } from './pages/profile/CustomerProfile';
 import { VendorProfile } from './pages/profile/VendorProfile';
@@ -83,6 +86,9 @@ export default function App() {
             <Route element={<RoleRoute allowedRoles={['customer']} />}>
               <Route element={<CustomerLayout />}>
                 <Route path="/explore" element={<Explore />} />
+                <Route path="/explore/:category" element={<BoothList />} />
+                <Route path="/booths/:boothId" element={<BoothDetail />} />
+                <Route path="/booths/:boothId/book" element={<BookingPage showToast={showToast} />} />
                 <Route path="/my-bookings" element={<CustomerBookings />} />
                 <Route path="/profile" element={<CustomerProfile />} />
               </Route>
@@ -93,7 +99,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<RoleRoute allowedRoles={['vendor']} />}>
               <Route element={<VendorLayout />}>
-                <Route path="/vendor/dashboard" element={<VendorDashboard />} />
+                <Route path="/vendor/dashboard" element={<VendorDashboard showToast={showToast} />} />
                 <Route path="/vendor/packages" element={<VendorPackages />} />
                 <Route path="/vendor/profile" element={<VendorProfile showToast={showToast} />} />
                 <Route path="/vendor/registration" element={<VendorSubmissionStatus />} />

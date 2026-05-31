@@ -239,6 +239,130 @@ VITE_CLOUDINARY_UPLOAD_PRESET=your-upload-preset
 
 ---
 
+## Flow Từ Booking Đến Đánh Giá
+
+### 1. Chọn gian hàng và gói dịch vụ
+- Người dùng vào `/explore`, lọc theo loại sự kiện.
+- Mở chi tiết gian hàng ở `/booths/:boothId` để xem:
+  - Thông tin vendor công khai
+  - Danh sách package
+  - Giá, tiền cọc, thời lượng
+  - Số khách tối thiểu/tối đa của package
+- Chọn package rồi bấm **Đặt lịch ngay** để vào trang booking.
+
+### 2. Tạo booking
+- Ở trang **Đặt Lịch Dịch Vụ**, người dùng chọn:
+  - Ngày tổ chức trên calendar
+  - Số khách nhập trực tiếp
+  - Giờ bắt đầu
+  - Địa chỉ tổ chức
+  - Ghi chú thêm nếu cần
+- Frontend gọi `POST /api/bookings`.
+- Backend tạo booking mới với:
+  - `status = pending`
+  - `paymentStatus = unpaid`
+  - Lưu `eventDate`, `startTime`, `eventStartAt`, `numberOfGuests`, `totalPrice`
+
+### 3. Vendor duyệt booking
+- Vendor vào trang danh sách booking để xem đơn mới.
+- Nếu duyệt, booking chuyển sang `waiting_deposit`.
+- Nếu từ chối, booking chuyển sang `cancelled`.
+
+### 4. Khách thanh toán cọc
+- Khách vào trang **Đơn Đặt Chỗ Của Tôi**.
+- Với booking ở trạng thái `waiting_deposit`, khách bấm **Thanh toán cọc**.
+- Hệ thống cho phép tải biên lai lên.
+- Backend lưu file vào `uploads/receipts` và cập nhật:
+  - `paymentStatus = deposit_pending`
+  - `depositReceiptUrl`
+
+### 5. Vendor xác nhận hoặc từ chối biên lai cọc
+- Vendor kiểm tra biên lai.
+- Nếu xác nhận:
+  - `paymentStatus = deposit_paid`
+  - `status = confirmed`
+  - `depositPaidAt` được ghi nhận
+- Nếu từ chối:
+  - `paymentStatus = deposit_rejected`
+  - Lưu lý do từ chối vào `depositRejectedReason`
+
+### 6. Hoàn thành dịch vụ
+- Khi đến thời điểm hợp lệ, vendor có thể đánh dấu booking là `vendor_completed`.
+- Khách sau đó xác nhận đã hoàn thành để chuyển booking sang `customer_completed`.
+- Nếu còn phần thanh toán cuối, khách gửi biên lai phần còn lại.
+- Sau khi thanh toán đủ, booking chuyển sang `completed`.
+
+### 7. Đánh giá
+- Hiện tại codebase **chưa có API hoặc form gửi review thật** sau khi booking hoàn tất.
+- Hệ thống chỉ đang hiển thị:
+  - `averageRating`
+  - `reviewCount`
+- Các số này được lấy từ vendor profile và hiển thị ở booth detail / vendor profile.
+- Nếu team muốn có review thật, cần bổ sung:
+  - Review model
+  - API tạo review sau `completed`
+  - UI nhập sao + nhận xét ở customer side
+
+---
+
+## Cách Chạy Dự Án
+
+### Backend
+1. Vào thư mục `backend`.
+2. Chạy cài đặt dependency:
+
+```bash
+npm install
+```
+
+3. Cấu hình file `backend/.env` theo mẫu sau:
+
+```env
+MONGO_URI="mongodb+srv://<user>:<password>@<cluster>/clickpick?retryWrites=true&w=majority&appName=EXE"
+PORT=5000
+JWT_SECRET=<your-jwt-secret>
+
+EMAIL_SERVICE=gmail
+EMAIL_USER=<your-email@gmail.com>
+EMAIL_PASSWORD=<your-app-password>
+EMAIL_FROM="EventFlow <noreply@eventflow.com>"
+
+FRONTEND_URL=http://localhost:5173
+```
+
+4. Chạy backend:
+
+```bash
+npm run dev
+```
+
+### Frontend
+1. Vào thư mục `frontend`.
+2. Cài đặt dependency:
+
+```bash
+npm install
+```
+
+3. Đảm bảo frontend dùng API backend local, thường là `VITE_API_URL=http://localhost:5000/api`.
+4. Chạy frontend:
+
+```bash
+npm run dev
+```
+
+### Mở Ứng Dụng
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:5000/api`
+
+### Lưu Ý Khi Test Luồng Booking
+- Cần có dữ liệu MongoDB sẵn: vendor, booth, package.
+- Package phải có `minParticipants` và `maxParticipants` để hiển thị đúng ở booking form.
+- Muốn test cọc/hoàn tiền cần file biên lai ảnh hoặc PDF.
+- Trạng thái lịch ngày bị bận lấy từ booking đã tồn tại của vendor.
+
+---
+
 ## Testing
 
 ### Test UC-06: Update Profile

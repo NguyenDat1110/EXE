@@ -1,5 +1,10 @@
 import api from './api';
 
+export const getPublicPackage = async (id: string) => {
+  const res = await api.get(`/packages/public/${id}`);
+  return res.data;
+};
+
 export const getMyPackages = async (boothId?: string) => {
   const res = await api.get('/packages', {
     params: boothId ? { boothId } : undefined

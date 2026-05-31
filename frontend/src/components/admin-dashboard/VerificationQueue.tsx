@@ -8,7 +8,8 @@ interface Vendor {
   companyName: string;
   email: string;
   avatar?: string;
-  businessLicense: string;
+  businessLicense: string[];
+  businessLicenseNames?: string[];
   companyAddress: string;
   phone: string;
   taxId: string;
@@ -19,6 +20,31 @@ interface Vendor {
     name: string;
   };
 }
+
+const renderBusinessLicenseLinks = (license: string | string[] | undefined, names?: string[] | undefined) => {
+  if (!license || (Array.isArray(license) && license.length === 0)) {
+    return null;
+  }
+
+  const links = Array.isArray(license) ? license : [license];
+
+  return (
+    <div className="space-y-2">
+      {links.map((item, index) => (
+        <a
+          key={`${item}-${index}`}
+          href={item}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary hover:underline flex items-center gap-2"
+        >
+          <FileText className="w-4 h-4" />
+          <span>{names?.[index] || (links.length > 1 ? `Giấy phép ${index + 1}` : 'Giấy phép kinh doanh')}</span>
+        </a>
+      ))}
+    </div>
+  );
+};
 
 export default function VerificationQueue({ showToast }: { showToast: (msg: string, type?: 'success' | 'error' | 'info') => void }) {
   const [activeTab, setActiveTab] = useState('pending');
@@ -179,12 +205,7 @@ export default function VerificationQueue({ showToast }: { showToast: (msg: stri
                 </div>
               </div>
 
-              {vendor.businessLicense && (
-                <div className="flex items-center gap-3 mb-6 text-sm">
-                  <FileText className="w-4 h-4 text-primary" />
-                  <a href={vendor.businessLicense} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Giấy phép kinh doanh</a>
-                </div>
-              )}
+              {renderBusinessLicenseLinks(vendor.businessLicense, vendor.businessLicenseNames)}
 
               {vendor.verificationStatus === 'rejected' && vendor.verificationReason && (
                 <div className="mb-6 p-3 bg-red-500/10 border border-red-500/30 rounded text-sm text-red-300">
@@ -244,14 +265,8 @@ export default function VerificationQueue({ showToast }: { showToast: (msg: stri
                   </div>
                 </div>
                 
-                {selectedVendor.businessLicense && (
-                  <div>
-                    <h4 className="text-lg font-bold text-white mb-3">Giấy phép kinh doanh</h4>
-                    <a href={selectedVendor.businessLicense} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-2">
-                      <FileText className="w-4 h-4" /> Xem tài liệu
-                    </a>
-                  </div>
-                )}
+                {renderBusinessLicenseLinks(selectedVendor.businessLicense, selectedVendor.businessLicenseNames)}
+                
               </div>
 
               {selectedVendor.verificationStatus === 'pending' && (

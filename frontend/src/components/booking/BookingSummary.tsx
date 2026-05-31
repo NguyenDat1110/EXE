@@ -1,31 +1,27 @@
 import { Info, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 export default function BookingSummary({ data, onNext, onBack }: { data: any, onNext: () => void, onBack: () => void }) {
-  // Mock calculation
-  const total = 150000000;
-  const deposit = total * 0.3;
+  const pkg = data.package;
+  const total = pkg?.price || 0;
+  const deposit = pkg?.depositAmount ?? Math.round(total * 0.3);
   const remaining = total - deposit;
 
-  const formatVND = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-  };
+  const formatVND = (amount: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Vendor Mini Card */}
       <div className="glass-card rounded-2xl p-4 flex items-center gap-4">
-        <img 
-          src="https://lh3.googleusercontent.com/aida-public/AB6AXuD82RtNeC6UIQ7eV7VhnKG6fbIF290wz0vEhN4vpeoFwgilwMcAtdGN-FBoDFY_fIwHtP4lN1eCyafLvH5Z2oWwl3x9o4Zl0cH15srw1c9ZCQQKZP9oqjB4NyvnkRdwuwVFv-rPHZAJbOG5tnRFiNDIZA5qq9CLN2MPUJxEaLpGlb3VlUvRYxOm61M3dAztUR4ELE5Aae6nswf0eix8qbIbwPeHsL38GogmaVLtvCTSRvT_wjxb9VmeNzj91XQpt0ogxg0WWoIzArsp" 
-          alt="Vendor" 
-          className="w-20 h-20 rounded-xl object-cover"
-        />
+        <img src={data.package?.images?.[0] || data.vendor?.avatar || ''} alt={data.vendor?.name || 'Vendor'} className="w-20 h-20 rounded-xl object-cover" />
         <div>
-          <h3 className="text-lg font-serif text-white">Lumina Events</h3>
-          <p className="text-sm text-primary font-medium">Gói Siêu Cấp (Luxury)</p>
+          <h3 className="text-lg font-serif text-white">{data.vendor?.name || 'Nhà cung cấp'}</h3>
+          <p className="text-sm text-primary font-medium">{pkg?.name}</p>
           <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
-            <span>{data.date || '20/11/2024'}</span>
+            <span>{data.date || ''}</span>
             <span className="w-1 h-1 rounded-full bg-slate-600" />
-            <span>{data.guests || 200} khách</span>
+            <span>{data.startTime || ''}</span>
+            <span className="w-1 h-1 rounded-full bg-slate-600" />
+            <span>{data.guests || ''} khách</span>
           </div>
         </div>
       </div>
@@ -63,7 +59,7 @@ export default function BookingSummary({ data, onNext, onBack }: { data: any, on
       <div className="glass-card rounded-xl p-4 flex items-start gap-3 border-white/5">
         <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
         <p className="text-xs text-slate-400 leading-relaxed">
-          Bằng việc xác nhận, bạn đồng ý với <a href="#" className="text-primary hover:underline">Chính sách hủy & hoàn tiền</a> của CLICKPICK. Số tiền cọc sẽ được giữ an toàn trên nền tảng cho đến khi sự kiện diễn ra thành công.
+          Bằng việc gửi yêu cầu, bạn đồng ý với <a href="#" className="text-primary hover:underline">Chính sách hủy & hoàn tiền</a> của CLICKPICK. Sau khi vendor duyệt, nút thanh toán cọc sẽ xuất hiện trong lịch sử booking.
         </p>
       </div>
 
@@ -79,7 +75,7 @@ export default function BookingSummary({ data, onNext, onBack }: { data: any, on
           onClick={onNext}
           className="flex-1 py-4 bg-primary text-background-dark font-bold uppercase tracking-widest text-sm rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 cyan-glow"
         >
-          Xác Nhận <CheckCircle2 className="w-4 h-4" />
+          Gửi yêu cầu đặt lịch <CheckCircle2 className="w-4 h-4" />
         </button>
       </div>
     </div>

@@ -17,7 +17,8 @@ export interface IVendor extends Document {
   companyName: string;
   taxId: string;
   companyAddress: string;
-  businessLicense: string;
+  businessLicense: string[];
+  businessLicenseNames?: string[];
   phone: string;
   email: string;
   bio?: string;
@@ -33,6 +34,9 @@ export interface IVendor extends Document {
   subscriptionPlan?: 'basic' | 'vip';
   subscriptionExpiry?: Date;
   subscriptionStatus?: 'active' | 'expired' | 'inactive';
+  accountHolderName?: string;
+  accountNumber?: string;
+  bankName?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,7 +60,8 @@ const vendorSchema = new Schema<IVendor>(
     companyName: { type: String, default: '' },
     taxId: { type: String, default: undefined, unique: true, sparse: true },
     companyAddress: { type: String, default: '' },
-    businessLicense: { type: String, default: '' },
+    businessLicense: { type: [String], default: [] },
+    businessLicenseNames: { type: [String], default: [] },
     phone: { type: String, default: '' },
     email: { type: String, default: '' },
     bio: { type: String, maxlength: 300 },
@@ -72,6 +77,10 @@ const vendorSchema = new Schema<IVendor>(
     subscriptionPlan: { type: String, enum: ['basic', 'vip'], default: undefined },
     subscriptionExpiry: { type: Date },
     subscriptionStatus: { type: String, enum: ['active', 'expired', 'inactive'], default: 'inactive' }
+    ,
+    accountHolderName: { type: String, default: '' },
+    accountNumber: { type: String, default: '' },
+    bankName: { type: String, default: '' }
   },
   { timestamps: true }
 );

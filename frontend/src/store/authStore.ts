@@ -18,7 +18,7 @@ export interface User {
   companyName?: string;
   taxId?: string;
   companyAddress?: string;
-  businessLicense?: string;
+  businessLicense?: string[];
   portfolio?: string[];
   bio?: string;
   createdAt: string;

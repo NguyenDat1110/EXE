@@ -50,7 +50,8 @@ export const uploadToCloudinary = async (
 export const uploadToCloudinaryFile = async (
   file: File,
   folder: string = 'eventflow/users',
-  resourceType: CloudinaryResourceType = 'auto'
+  resourceType: CloudinaryResourceType = 'auto',
+  maxSize: number = 5 * 1024 * 1024
 ): Promise<CloudinaryResponse> => {
   try {
     // Validate file
@@ -58,10 +59,9 @@ export const uploadToCloudinaryFile = async (
       throw new Error('Vui lòng chọn một tệp hợp lệ');
     }
 
-    // Check file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
-      throw new Error('Kích thước tệp không được vượt quá 5MB');
+      const maxSizeInMb = Math.round(maxSize / (1024 * 1024));
+      throw new Error(`Kích thước tệp không được vượt quá ${maxSizeInMb}MB`);
     }
 
     // Restrict image uploads only when using image mode
@@ -86,7 +86,7 @@ export const uploadToCloudinaryFile = async (
     });
 
     if (!response.ok) {
-      throw new Error('Lỗi tải lên hình ảnh. Vui lòng thử lại');
+      throw new Error('Lỗi tải lên tệp. Vui lòng thử lại');
     }
 
     const data = await response.json() as CloudinaryResponse;

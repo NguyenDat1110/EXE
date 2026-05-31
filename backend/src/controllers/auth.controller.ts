@@ -51,7 +51,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         companyName: '',
         taxId: undefined,
         companyAddress: '',
-        businessLicense: '',
+        businessLicense: [],
         phone: phone || '',
         email: email.toLowerCase(),
         verificationStatus: 'pending',

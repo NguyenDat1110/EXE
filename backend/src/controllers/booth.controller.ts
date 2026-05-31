@@ -4,6 +4,13 @@ import { Booth } from '../models/booth.model';
 import { Vendor } from '../models/vendor.model';
 import { Package } from '../models/package.model';
 
+const EVENT_TYPE_TO_CATEGORY: Record<string, 'wedding' | 'seminar' | 'birthday' | 'anniversary'> = {
+  'TIỆC CƯỚI': 'wedding',
+  'HỘI THẢO': 'seminar',
+  'SINH NHẬT': 'birthday',
+  'KỈ NIỆM': 'anniversary'
+};
+
 const getVendorForUser = async (userId: string) => {
   return Vendor.findOne({ userId });
 };
@@ -21,7 +28,7 @@ export const createBooth = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    const { name, eventType, description } = req.body;
+    const { name, eventType, description, address, coverImage, gallery } = req.body;
     if (!name || !eventType) {
       res.status(400).json({ message: 'Vui lòng nhập tên gian hàng và loại sự kiện.' });
       return;
@@ -32,8 +39,12 @@ export const createBooth = async (req: AuthRequest, res: Response): Promise<void
     const booth = await Booth.create({
       vendorId: vendor._id,
       name: String(name).trim(),
+      category: EVENT_TYPE_TO_CATEGORY[normalizedEventType],
       eventType: normalizedEventType,
       description: String(description || '').trim(),
+      address: String(address || '').trim(),
+      coverImage: String(coverImage || '').trim(),
+      gallery: Array.isArray(gallery) ? gallery.map((item) => String(item).trim()).filter(Boolean) : [],
       isActive: true
     });
 
@@ -89,10 +100,19 @@ export const updateBooth = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    const { name, eventType, description, isActive } = req.body;
+    const { name, eventType, description, address, coverImage, gallery, isActive } = req.body;
     if (name !== undefined) booth.name = String(name).trim();
-    if (eventType !== undefined) booth.eventType = String(eventType).trim().toUpperCase() as any;
+    if (eventType !== undefined) {
+      const normalizedEventType = String(eventType).trim().toUpperCase();
+      booth.eventType = normalizedEventType as any;
+      booth.category = EVENT_TYPE_TO_CATEGORY[normalizedEventType];
+    }
     if (description !== undefined) booth.description = String(description).trim();
+    if (address !== undefined) booth.address = String(address).trim();
+    if (coverImage !== undefined) booth.coverImage = String(coverImage).trim();
+    if (gallery !== undefined) {
+      booth.gallery = Array.isArray(gallery) ? gallery.map((item: unknown) => String(item).trim()).filter(Boolean) : [];
+    }
     if (isActive !== undefined) booth.isActive = Boolean(isActive);
 
     await booth.save();

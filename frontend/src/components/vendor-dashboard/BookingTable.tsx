@@ -1,44 +1,124 @@
-import { useState } from 'react';
-import { Eye, X, CheckCircle2, XCircle, Clock, Calendar as CalendarIcon, Users, Wallet, FileText } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Eye, X, CheckCircle2, XCircle, Calendar as CalendarIcon, Users, Wallet, FileText, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getVendorBookings, acceptBooking, declineBooking, markVendorComplete, vendorConfirmDeposit, vendorRejectDeposit } from '../../services/bookingsApi';
 
 const StatusBadge = ({ status }: { status: string }) => {
   switch (status) {
     case 'pending':
       return <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">Chờ duyệt</span>;
-    case 'deposited':
-      return <span className="px-3 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30 cyan-glow">Đã cọc</span>;
+    case 'waiting_deposit':
+      return <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">Chờ thanh toán</span>;
+    case 'confirmed':
+      return <span className="px-3 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">Đã xác nhận</span>;
+    case 'vendor_completed':
+      return <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Vendor đã hoàn thành</span>;
+    case 'customer_completed':
+      return <span className="px-3 py-1 rounded-full text-xs font-medium bg-cyan/20 text-cyan border border-cyan/30">Chờ thanh toán còn lại</span>;
     case 'completed':
       return <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Hoàn thành</span>;
     case 'cancelled':
       return <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300 border border-red-500/30">Đã hủy</span>;
     default:
-      return null;
+      return <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/10 text-slate-200 border border-white/10">Đang xử lý</span>;
   }
 };
 
-const mockBookings = [
-  { id: 'SW-8892A', event: 'Gala Dinner Techcombank', date: '20/11/2024', guests: 200, budget: 150000000, status: 'pending', customer: 'Nguyễn Văn A', phone: '0901234567', package: 'Gói Siêu Cấp (Luxury)' },
-  { id: 'SW-8893B', event: 'Sinh nhật bé Dâu', date: '25/11/2024', guests: 50, budget: 45000000, status: 'deposited', customer: 'Trần Thị B', phone: '0912345678', package: 'Gói Cơ Bản (Essential)' },
-  { id: 'SW-8894C', event: 'Year End Party VNG', date: '15/12/2024', guests: 500, budget: 300000000, status: 'completed', customer: 'Lê Văn C', phone: '0923456789', package: 'Gói Siêu Cấp (Luxury)' },
-  { id: 'SW-8895D', event: 'Kỷ niệm 10 năm cưới', date: '05/11/2024', guests: 100, budget: 80000000, status: 'cancelled', customer: 'Phạm Thị D', phone: '0934567890', package: 'Gói Cao Cấp (Premium)' },
-];
-
 export default function BookingTable({ showToast }: { showToast: (msg: string, type?: 'success' | 'error' | 'info') => void }) {
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [depositRejectReason, setDepositRejectReason] = useState('');
 
   const formatVND = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
 
-  const handleApprove = () => {
-    setSelectedBooking(null);
-    showToast('Đã duyệt booking và gửi yêu cầu đặt cọc', 'success');
+  const loadBookings = async () => {
+    setLoading(true);
+    try {
+      const res = await getVendorBookings();
+      setBookings(res?.data?.bookings || []);
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || 'Không thể tải danh sách booking', 'error');
+      setBookings([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReject = () => {
-    setSelectedBooking(null);
-    showToast('Đã từ chối booking', 'error');
+  useEffect(() => {
+    loadBookings();
+  }, []);
+
+  const handleApprove = async () => {
+    if (!selectedBooking) return;
+    try {
+      await acceptBooking(selectedBooking._id);
+      showToast('Đã duyệt booking và gửi yêu cầu đặt cọc', 'success');
+      setSelectedBooking(null);
+      await loadBookings();
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || 'Không thể duyệt booking', 'error');
+    }
+  };
+
+  const handleReject = async () => {
+    if (!selectedBooking) return;
+    try {
+      await declineBooking(selectedBooking._id);
+      showToast('Đã từ chối booking', 'error');
+      setSelectedBooking(null);
+      await loadBookings();
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || 'Không thể từ chối booking', 'error');
+    }
+  };
+
+  const handleVendorComplete = async () => {
+    if (!selectedBooking) return;
+    try {
+      await markVendorComplete(selectedBooking._id);
+      showToast('Đã đánh dấu hoàn thành và thông báo cho khách hàng', 'success');
+      setSelectedBooking(null);
+      await loadBookings();
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || 'Không thể đánh dấu hoàn thành', 'error');
+    }
+  };
+
+  const handleConfirmDeposit = async () => {
+    if (!selectedBooking) return;
+    try {
+      await vendorConfirmDeposit(selectedBooking._id);
+      showToast('Đã xác nhận biên lai cọc', 'success');
+      setSelectedBooking(null);
+      await loadBookings();
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || 'Không thể xác nhận biên lai', 'error');
+    }
+  };
+
+  const handleRejectDeposit = async () => {
+    if (!selectedBooking) return;
+    if (!depositRejectReason.trim()) {
+      showToast('Vui lòng nhập lý do từ chối biên lai', 'error');
+      return;
+    }
+    try {
+      await vendorRejectDeposit(selectedBooking._id, depositRejectReason.trim());
+      showToast('Đã từ chối biên lai cọc', 'success');
+      setSelectedBooking(null);
+      setDepositRejectReason('');
+      await loadBookings();
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || 'Không thể từ chối biên lai', 'error');
+    }
+  };
+
+  const canVendorComplete = (booking: any) => {
+    if (booking.status !== 'confirmed' || !booking.completionEligibleAt) return false;
+    return new Date(booking.completionEligibleAt).getTime() <= Date.now();
   };
 
   return (
@@ -50,7 +130,8 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
             <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary appearance-none">
               <option value="all" className="bg-background-dark">Tất cả trạng thái</option>
               <option value="pending" className="bg-background-dark">Chờ duyệt</option>
-              <option value="deposited" className="bg-background-dark">Đã cọc</option>
+              <option value="waiting_deposit" className="bg-background-dark">Chờ thanh toán</option>
+              <option value="confirmed" className="bg-background-dark">Đã xác nhận</option>
             </select>
           </div>
         </div>
@@ -58,7 +139,7 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-white/5 text-slate-400 text-xs uppercase tracking-wider">
-                <th className="p-4 font-medium">Sự kiện</th>
+                <th className="p-4 font-medium">Gói</th>
                 <th className="p-4 font-medium">Ngày</th>
                 <th className="p-4 font-medium">Khách</th>
                 <th className="p-4 font-medium">Ngân sách</th>
@@ -67,41 +148,47 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {mockBookings.map((booking) => (
-                <tr key={booking.id} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => setSelectedBooking(booking)}>
-                  <td className="p-4">
-                    <div className="font-medium text-white">{booking.event}</div>
-                    <div className="text-xs text-slate-500">{booking.id}</div>
-                  </td>
-                  <td className="p-4 text-sm text-slate-300">{booking.date}</td>
-                  <td className="p-4 text-sm text-slate-300">{booking.guests}</td>
-                  <td className="p-4 text-sm font-medium text-primary">{formatVND(booking.budget)}</td>
-                  <td className="p-4"><StatusBadge status={booking.status} /></td>
-                  <td className="p-4 text-center">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setSelectedBooking(booking); }}
-                      className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors inline-flex"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                  </td>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="p-6 text-sm text-slate-400 text-center">Đang tải booking...</td>
                 </tr>
-              ))}
+              ) : bookings.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-6 text-sm text-slate-400 text-center">Chưa có booking nào.</td>
+                </tr>
+              ) : (
+                bookings.map((booking) => (
+                  <tr key={booking._id} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => setSelectedBooking(booking)}>
+                    <td className="p-4">
+                      <div className="font-medium text-white">{booking.package?.name || 'Booking mới'}</div>
+                      <div className="text-xs text-slate-500">{booking._id}</div>
+                    </td>
+                    <td className="p-4 text-sm text-slate-300">{booking.eventDate?.split('T')[0] || '-'}</td>
+                    <td className="p-4 text-sm text-slate-300">{booking.numberOfGuests}</td>
+                    <td className="p-4 text-sm font-medium text-primary">{formatVND(booking.totalPrice || 0)}</td>
+                    <td className="p-4"><StatusBadge status={booking.status} /></td>
+                    <td className="p-4 text-center">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setSelectedBooking(booking); }}
+                        className="p-2 rounded-lg hover:bg-white/10 transition-colors inline-flex"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
         <div className="p-4 border-t border-white/10 flex justify-between items-center text-sm text-slate-400">
-          <span>Hiển thị 1-4 trên 24 booking</span>
+          <span>Hiển thị {bookings.length} booking</span>
           <div className="flex gap-1">
-            <button className="px-3 py-1 rounded bg-white/5 hover:bg-white/10 transition-colors">Trước</button>
-            <button className="px-3 py-1 rounded bg-primary text-background-dark font-medium">1</button>
-            <button className="px-3 py-1 rounded bg-white/5 hover:bg-white/10 transition-colors">2</button>
-            <button className="px-3 py-1 rounded bg-white/5 hover:bg-white/10 transition-colors">Sau</button>
+            <button onClick={loadBookings} className="px-3 py-1 rounded bg-white/5 hover:bg-white/10 transition-colors">Tải lại</button>
           </div>
         </div>
       </div>
 
-      {/* Slide-out Drawer */}
       <AnimatePresence>
         {selectedBooking && (
           <>
@@ -122,7 +209,7 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
               <div className="p-6 border-b border-white/10 flex justify-between items-center sticky top-0 bg-background-dark/80 backdrop-blur-md z-10">
                 <div>
                   <h2 className="text-xl font-bold text-white">Chi tiết Booking</h2>
-                  <p className="text-sm text-slate-400">{selectedBooking.id}</p>
+                  <p className="text-sm text-slate-400">{selectedBooking._id}</p>
                 </div>
                 <button onClick={() => setSelectedBooking(null)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
                   <X className="w-5 h-5 text-slate-400" />
@@ -132,7 +219,7 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
               <div className="p-6 flex-1 space-y-6">
                 <div className="flex justify-between items-center">
                   <StatusBadge status={selectedBooking.status} />
-                  <span className="text-sm text-slate-400">Tạo lúc: 10/10/2024 14:30</span>
+                  <span className="text-sm text-slate-400">Tạo lúc: {new Date(selectedBooking.createdAt).toLocaleDateString('vi-VN')}</span>
                 </div>
 
                 <div className="glass-panel p-5 rounded-xl space-y-4">
@@ -141,20 +228,24 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
                   </h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="block text-slate-500 mb-1">Tên sự kiện</span>
-                      <span className="text-white font-medium">{selectedBooking.event}</span>
+                      <span className="block text-slate-500 mb-1">Tên gói</span>
+                      <span className="text-white font-medium">{selectedBooking.package?.name || 'Gói dịch vụ'}</span>
                     </div>
                     <div>
-                      <span className="block text-slate-500 mb-1">Gói dịch vụ</span>
-                      <span className="text-primary font-medium">{selectedBooking.package}</span>
+                      <span className="block text-slate-500 mb-1">Số khách</span>
+                      <span className="text-white font-medium">{selectedBooking.numberOfGuests}</span>
                     </div>
                     <div>
                       <span className="block text-slate-500 mb-1 flex items-center gap-1"><CalendarIcon className="w-3 h-3" /> Ngày tổ chức</span>
-                      <span className="text-white font-medium">{selectedBooking.date}</span>
+                      <span className="text-white font-medium">{selectedBooking.eventDate?.split('T')[0] || '-'}</span>
                     </div>
                     <div>
-                      <span className="block text-slate-500 mb-1 flex items-center gap-1"><Users className="w-3 h-3" /> Số khách</span>
-                      <span className="text-white font-medium">{selectedBooking.guests}</span>
+                      <span className="block text-slate-500 mb-1">Địa điểm</span>
+                      <span className="text-white font-medium">{selectedBooking.eventAddress || selectedBooking.booth?.name || 'Chưa xác định'}</span>
+                    </div>
+                    <div>
+                      <span className="block text-slate-500 mb-1">Giờ bắt đầu</span>
+                      <span className="text-white font-medium">{selectedBooking.startTime || '--:--'}</span>
                     </div>
                   </div>
                 </div>
@@ -165,12 +256,12 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
                   </h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="block text-slate-500 mb-1">Họ tên</span>
-                      <span className="text-white font-medium">{selectedBooking.customer}</span>
+                      <span className="block text-slate-500 mb-1">Khách hàng</span>
+                      <span className="text-white font-medium">{selectedBooking.customer?.name || selectedBooking.customerId || 'Khách hàng'}</span>
                     </div>
                     <div>
                       <span className="block text-slate-500 mb-1">Số điện thoại</span>
-                      <span className="text-white font-medium">{selectedBooking.phone}</span>
+                      <span className="text-white font-medium">{selectedBooking.customer?.phone || 'Không hiển thị'}</span>
                     </div>
                   </div>
                 </div>
@@ -183,18 +274,38 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
                   <div className="space-y-2 text-sm relative z-10">
                     <div className="flex justify-between">
                       <span className="text-slate-400">Tổng ngân sách</span>
-                      <span className="text-white font-medium">{formatVND(selectedBooking.budget)}</span>
+                      <span className="text-white font-medium">{formatVND(selectedBooking.totalPrice || 0)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Đã cọc (30%)</span>
-                      <span className="text-primary font-bold">{formatVND(selectedBooking.budget * 0.3)}</span>
+                      <span className="text-slate-400">Tiền cọc yêu cầu</span>
+                      <span className="text-primary font-bold">{formatVND(selectedBooking.depositAmount || 0)}</span>
                     </div>
                     <div className="flex justify-between border-t border-white/10 pt-2 mt-2">
-                      <span className="text-slate-400">Còn lại</span>
-                      <span className="text-white font-medium">{formatVND(selectedBooking.budget * 0.7)}</span>
+                      <span className="text-slate-400">Thanh toán sau khi hoàn thành sự kiện</span>
+                      <span className="text-white font-medium">{formatVND(selectedBooking.remainingAmount || Math.max((selectedBooking.totalPrice || 0) - (selectedBooking.depositAmount || 0), 0))}</span>
                     </div>
                   </div>
                 </div>
+
+                {(selectedBooking.depositReceiptUrl || selectedBooking.finalReceiptUrl) && (
+                  <div className="glass-panel p-5 rounded-xl space-y-4">
+                    <h3 className="font-bold text-white flex items-center gap-2 mb-2">
+                      <ImageIcon className="w-4 h-4 text-primary" /> Biên lai đã gửi
+                    </h3>
+                    {selectedBooking.depositReceiptUrl && (
+                      <a href={selectedBooking.depositReceiptUrl} target="_blank" rel="noreferrer" className="block rounded-xl border border-white/10 overflow-hidden bg-white/[0.03] hover:border-cyan/50 transition-colors">
+                        <img src={selectedBooking.depositReceiptUrl} alt="Deposit receipt" className="w-full max-h-56 object-cover" />
+                        <div className="px-4 py-3 text-xs text-cyan">Xem biên lai cọc</div>
+                      </a>
+                    )}
+                    {selectedBooking.finalReceiptUrl && (
+                      <a href={selectedBooking.finalReceiptUrl} target="_blank" rel="noreferrer" className="block rounded-xl border border-white/10 overflow-hidden bg-white/[0.03] hover:border-cyan/50 transition-colors">
+                        <img src={selectedBooking.finalReceiptUrl} alt="Final receipt" className="w-full max-h-56 object-cover" />
+                        <div className="px-4 py-3 text-xs text-cyan">Xem biên lai thanh toán còn lại</div>
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
 
               {selectedBooking.status === 'pending' && (
@@ -205,6 +316,41 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
                   <button onClick={handleApprove} className="flex-1 py-3 bg-primary text-background-dark font-bold rounded-xl hover:brightness-110 transition-all cyan-glow flex items-center justify-center gap-2">
                     <CheckCircle2 className="w-4 h-4" /> Duyệt & Nhận cọc
                   </button>
+                </div>
+              )}
+              {selectedBooking.paymentStatus === 'deposit_pending' && (
+                <div className="p-6 border-t border-white/10 bg-background-dark sticky bottom-0 space-y-3">
+                  <textarea
+                    value={depositRejectReason}
+                    onChange={(e) => setDepositRejectReason(e.target.value)}
+                    rows={3}
+                    placeholder="Nhập lý do từ chối biên lai..."
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleRejectDeposit}
+                      className="flex-1 py-3 glass-card text-red-300 font-bold rounded-xl hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <XCircle className="w-4 h-4" /> Từ chối biên lai
+                    </button>
+                    <button onClick={handleConfirmDeposit} className="flex-1 py-3 bg-primary text-background-dark font-bold rounded-xl hover:brightness-110 transition-all cyan-glow flex items-center justify-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" /> Xác nhận biên lai cọc
+                    </button>
+                  </div>
+                </div>
+              )}
+              {selectedBooking.status === 'confirmed' && (
+                <div className="p-6 border-t border-white/10 bg-background-dark sticky bottom-0">
+                  {canVendorComplete(selectedBooking) ? (
+                    <button onClick={handleVendorComplete} className="w-full py-3 bg-primary text-background-dark font-bold rounded-xl hover:brightness-110 transition-all cyan-glow flex items-center justify-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" /> Đánh dấu hoàn thành
+                    </button>
+                  ) : (
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-400">
+                      Chưa đến thời gian kết thúc dịch vụ để đánh dấu hoàn thành.
+                    </div>
+                  )}
                 </div>
               )}
             </motion.div>

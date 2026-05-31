@@ -13,6 +13,23 @@ interface VendorStatus {
   verificationReason?: string;
 }
 
+interface LicenseFileItem {
+  name: string;
+  url: string;
+}
+
+const LICENSE_MAX_SIZE = 20 * 1024 * 1024;
+
+const extractFileName = (url: string): string => {
+  try {
+    const pathname = new URL(url).pathname;
+    const fileName = pathname.split('/').pop() || '';
+    return decodeURIComponent(fileName) || 'Tài liệu';
+  } catch {
+    return 'Tài liệu';
+  }
+};
+
 export function VendorSubmissionForm() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -26,10 +43,16 @@ export function VendorSubmissionForm() {
     phone: user?.phone || '',
     email: user?.email || '',
     website: '',
+    accountHolderName: '',
+    accountNumber: '',
+    bankName: '',
     bio: '',
-    businessLicense: '',
+    businessLicense: [] as string[],
+    businessLicenseNames: [] as string[],
     avatar: ''
   });
+
+  const [licenseFiles, setLicenseFiles] = useState<LicenseFileItem[]>([]);
 
   const [vendorStatus, setVendorStatus] = useState<VendorStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
@@ -53,7 +76,7 @@ export function VendorSubmissionForm() {
             verificationReason: vendor.verificationReason
           });
           // Pre-fill form with existing data
-          if (vendor.companyName) {
+            if (vendor.companyName) {
             setFormData(prev => ({
               ...prev,
               companyName: vendor.companyName,
@@ -62,10 +85,36 @@ export function VendorSubmissionForm() {
               phone: vendor.phone || prev.phone,
               email: vendor.email || prev.email,
               website: vendor.website || '',
-              bio: vendor.bio || '',
-              businessLicense: vendor.businessLicense || '',
+                accountHolderName: vendor.accountHolderName || '',
+                accountNumber: vendor.accountNumber || '',
+                bankName: vendor.bankName || '',
+                bio: vendor.bio || '',
+              businessLicense: Array.isArray(vendor.businessLicense)
+                ? vendor.businessLicense
+                : vendor.businessLicense
+                  ? [vendor.businessLicense]
+                  : [],
+              businessLicenseNames: Array.isArray(vendor.businessLicenseNames)
+                ? vendor.businessLicenseNames
+                : [],
               avatar: vendor.avatar || ''
             }));
+
+            const existingFiles = Array.isArray(vendor.businessLicense)
+              ? vendor.businessLicense
+              : vendor.businessLicense
+                ? [vendor.businessLicense]
+                : [];
+            const existingNames = Array.isArray(vendor.businessLicenseNames)
+              ? vendor.businessLicenseNames
+              : [];
+
+            setLicenseFiles(
+              existingFiles.map((url, index) => ({
+                name: existingNames[index] || extractFileName(url),
+                url,
+              }))
+            );
           }
         }
       } catch (err) {
@@ -134,15 +183,34 @@ export function VendorSubmissionForm() {
   };
 
   const handleLicenseUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
     setIsUploading(true);
     setUploadError(null);
 
     try {
-      const uploaded = await uploadToCloudinary(file, 'eventflow/business-licenses');
-      setFormData(prev => ({ ...prev, businessLicense: uploaded.secure_url }));
+      const uploadedFiles = await Promise.all(
+        files.map(async (file) => {
+          const formData = new FormData();
+          formData.append('file', file);
+
+          const response = await api.post('/vendor/upload-license', formData);
+
+          return {
+            name: file.name,
+            url: response.data.fileUrl,
+          };
+        })
+      );
+
+      setFormData(prev => ({
+        ...prev,
+        businessLicense: [...prev.businessLicense, ...uploadedFiles.map(file => file.url)],
+        businessLicenseNames: [...prev.businessLicenseNames, ...uploadedFiles.map(file => file.name)]
+      }));
+      setLicenseFiles(prev => [...prev, ...uploadedFiles]);
+      e.target.value = '';
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Lỗi tải lên giấy phép');
     } finally {
@@ -357,37 +425,108 @@ export function VendorSubmissionForm() {
                   placeholder="https://example.com"
                 />
               </label>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-white font-semibold block mb-2">Tên Chủ Tài Khoản (Ngân Hàng)</span>
+                  <input
+                    type="text"
+                    name="accountHolderName"
+                    value={(formData as any).accountHolderName || ''}
+                    onChange={handleInputChange}
+                    className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
+                    placeholder="VD: CÔNG TY TNHH ABC"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-white font-semibold block mb-2">Số Tài Khoản</span>
+                  <input
+                    type="text"
+                    name="accountNumber"
+                    value={(formData as any).accountNumber || ''}
+                    onChange={handleInputChange}
+                    className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
+                    placeholder="VD: 1029384756"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-white font-semibold block mb-2">Tên Ngân Hàng</span>
+                  <input
+                    type="text"
+                    name="bankName"
+                    value={(formData as any).bankName || ''}
+                    onChange={handleInputChange}
+                    className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
+                    placeholder="VD: Vietcombank"
+                  />
+                </label>
+              </div>
             </div>
 
             {/* Business License */}
             <div className="glass-panel p-6 rounded-2xl">
               <label className="block text-white font-semibold mb-4">Giấy Phép Kinh Doanh *</label>
+              <p className="text-silver/60 text-sm mb-3">
+                Hỗ trợ PDF, JPG, PNG, WEBP và có thể tải nhiều tệp cùng lúc, tối đa 20MB/tệp.
+              </p>
               <div
                 className="border-2 border-dashed border-cyan/30 rounded-lg p-6 text-center cursor-pointer hover:border-cyan/60 transition-colors"
                 onClick={() => licenseInputRef.current?.click()}
               >
-                {formData.businessLicense ? (
+                {licenseFiles.length > 0 ? (
                   <div className="flex flex-col items-center">
                     <CheckCircle className="w-12 h-12 text-emerald-400 mb-2" />
-                    <p className="text-white font-semibold">Đã tải lên</p>
-                    <p className="text-cyan text-sm">Nhấn để thay đổi</p>
+                    <p className="text-white font-semibold">Đã tải lên {licenseFiles.length} tệp</p>
+                    <p className="text-cyan text-sm">Nhấn để chọn thêm hoặc thay đổi</p>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center">
                     <Upload className="w-12 h-12 text-cyan/60 mb-2" />
                     <p className="text-white font-semibold">Tải lên giấy phép</p>
-                    <p className="text-silver/60 text-sm">JPG, PNG hoặc PDF - Tối đa 10MB</p>
+                    <p className="text-silver/60 text-sm">JPG, PNG, WEBP hoặc PDF - Tối đa 20MB/tệp</p>
                   </div>
                 )}
               </div>
               <input
                 ref={licenseInputRef}
                 type="file"
-                accept="image/jpeg,image/png,.pdf"
+                accept="image/jpeg,image/png,image/webp,application/pdf,.pdf"
+                multiple
                 onChange={handleLicenseUpload}
                 disabled={isUploading}
                 className="hidden"
               />
+              {licenseFiles.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {licenseFiles.map((file, index) => (
+                    <div key={`${file.url}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-white text-sm font-medium truncate">{file.name}</p>
+                        <a href={file.url} target="_blank" rel="noreferrer" className="text-cyan text-xs hover:underline">
+                          Xem tài liệu
+                        </a>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setLicenseFiles(prev => prev.filter((_, currentIndex) => currentIndex !== index));
+                          setFormData(prev => ({
+                            ...prev,
+                            businessLicense: prev.businessLicense.filter((url) => url !== file.url)
+                          }));
+                        }}
+                        className="text-silver/60 hover:text-white transition-colors"
+                        aria-label={`Xóa file ${file.name}`}
+                      >
+                        <XCircle className="w-5 h-5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Description */}

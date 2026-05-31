@@ -237,3 +237,23 @@ export const deletePackage = async (req: AuthRequest, res: Response): Promise<vo
     res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
   }
 };
+
+// Public package detail (for customers)
+export const getPublicPackage = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const pkgId = req.params.id;
+    const pkg = await Package.findById(pkgId).lean();
+    if (!pkg) {
+      res.status(404).json({ message: 'Không tìm thấy gói dịch vụ.' });
+      return;
+    }
+
+    const vendor = await Vendor.findById((pkg as any).vendorId).lean();
+    const booth = await Booth.findById((pkg as any).boothId).lean();
+
+    res.status(200).json({ data: { package: pkg, vendor, booth } });
+  } catch (error) {
+    console.error('Get public package error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};

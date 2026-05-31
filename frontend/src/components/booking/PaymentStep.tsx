@@ -1,72 +1,154 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CreditCard, Landmark, QrCode, Upload, CheckCircle2, Copy } from 'lucide-react';
+import { CreditCard, Landmark, QrCode, Upload, CheckCircle2, Copy, Image as ImageIcon } from 'lucide-react';
 
-export default function PaymentStep({ navigate, showToast }: { navigate: (page: string, params?: any) => void, showToast: (msg: string, type?: 'success' | 'error' | 'info') => void }) {
-  const [method, setMethod] = useState<'bank' | 'card' | 'ewallet' | null>('bank');
+import { payBookingDeposit, getBookingById } from '../../services/bookingsApi';
+
+export default function PaymentStep({ showToast, bookingId, bookingStatus }: { showToast: (msg: string, type?: 'success' | 'error' | 'info') => void, bookingId?: string, bookingStatus?: string }) {
+  const [method, setMethod] = useState<'bank' | 'card' | 'ewallet'>('bank');
   const [isSuccess, setIsSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [vendorBank, setVendorBank] = useState<{ accountHolderName?: string; accountNumber?: string; bankName?: string } | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleConfirm = () => {
-    setIsSuccess(true);
-    showToast('Đặt cọc thành công!', 'success');
+  const handleConfirm = async () => {
+    if (!bookingId) return showToast('Missing booking id', 'error');
+    if (bookingStatus !== 'waiting_deposit') return showToast('Chờ nhà cung cấp chấp nhận trước khi thanh toán.', 'error');
+    try {
+      setLoading(true);
+      const res = await payBookingDeposit(bookingId, file || undefined);
+      const booking = res?.data?.booking;
+      if (!booking) throw new Error('Không thể cập nhật trạng thái thanh toán');
+      setIsSuccess(true);
+      showToast('Thanh toán cọc thành công!', 'success');
+    } catch (err: any) {
+      console.error(err);
+      showToast(err?.response?.data?.message || err?.message || 'Thanh toán thất bại', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (isSuccess) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background-dark/95 backdrop-blur-md p-6">
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="glass-card rounded-3xl p-8 max-w-md w-full text-center relative overflow-hidden"
-        >
-          {/* Confetti effect placeholder */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none">
-            <div className="absolute top-10 left-1/4 w-2 h-2 bg-primary rounded-full animate-ping" />
-            <div className="absolute top-20 right-1/4 w-3 h-3 bg-yellow-400 rounded-full animate-ping delay-100" />
-            <div className="absolute bottom-20 left-1/3 w-2 h-2 bg-pink-500 rounded-full animate-ping delay-300" />
-          </div>
+  useEffect(() => {
+    if (file) {
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
+      return () => URL.revokeObjectURL(objectUrl);
+    }
 
-          <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6 cyan-glow">
+    setPreviewUrl(null);
+    return undefined;
+  }, [file]);
+
+  useEffect(() => {
+    if (!bookingId) return;
+    (async () => {
+      try {
+        const res = await getBookingById(bookingId);
+        const booking = res?.data?.booking;
+        if (booking && booking.vendor) {
+          setVendorBank({
+            accountHolderName: booking.vendor.accountHolderName,
+            accountNumber: booking.vendor.accountNumber,
+            bankName: booking.vendor.bankName
+          });
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+  }, [bookingId]);
+
+  const renderWaitingScreen = () => (
+    <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="glass-card rounded-3xl p-10 text-center border border-white/10">
+        <div className="mb-6">
+          <p className="text-lg font-semibold text-white">Yêu cầu đặt lịch đã được gửi</p>
+          <p className="mt-3 text-slate-400">Vui lòng chờ nhà cung cấp chấp nhận yêu cầu. Sau khi được duyệt, bạn sẽ có thể thanh toán cọc.</p>
+        </div>
+        <div className="space-y-4 text-sm text-slate-300">
+          <div className="flex justify-between border-b border-white/10 pb-3">
+            <span>Mã booking</span>
+            <span className="font-medium text-white">{bookingId}</span>
+          </div>
+          <div className="flex justify-between pt-3">
+            <span>Trạng thái</span>
+            <span className="font-medium text-amber-300">{bookingStatus || 'Đang xử lý'}</span>
+          </div>
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-8 w-full py-4 bg-primary text-background-dark font-bold uppercase tracking-widest text-sm rounded-xl hover:brightness-110 transition-all cyan-glow"
+        >
+          Làm mới trạng thái
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderConfirmedScreen = () => (
+    <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="glass-card rounded-3xl p-10 text-center border border-white/10">
+        <div className="mb-6">
+          <div className="w-20 h-20 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-6">
             <CheckCircle2 className="w-10 h-10 text-primary" />
           </div>
-          <h2 className="text-2xl font-serif italic text-white mb-2">Đặt Cọc Thành Công!</h2>
-          <p className="text-slate-400 mb-6">Mã Booking: <strong className="text-primary">#SW-8892A</strong></p>
-          
-          <div className="glass-panel rounded-xl p-4 mb-8 text-left space-y-3 border-white/5">
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-400">Vendor</span>
-              <span className="text-white font-medium">Lumina Events</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-400">Ngày sự kiện</span>
-              <span className="text-white font-medium">20/11/2024</span>
-            </div>
-            <div className="flex justify-between text-sm border-t border-white/10 pt-3 mt-3">
-              <span className="text-slate-400">Đã thanh toán</span>
-              <span className="text-primary font-bold">45.000.000đ</span>
-            </div>
+          <p className="text-lg font-semibold text-white">Booking đã được xác nhận</p>
+          <p className="mt-3 text-slate-400">Bạn đã hoàn tất thanh toán cọc và booking đã xác nhận.</p>
+        </div>
+        <div className="space-y-4 text-sm text-slate-300">
+          <div className="flex justify-between border-b border-white/10 pb-3">
+            <span>Mã booking</span>
+            <span className="font-medium text-white">{bookingId}</span>
           </div>
+          <div className="flex justify-between pt-3">
+            <span>Trạng thái</span>
+            <span className="font-medium text-emerald-300">Đã xác nhận</span>
+          </div>
+        </div>
+        <button
+          onClick={() => window.location.assign('/')}
+          className="mt-8 w-full py-4 bg-primary text-background-dark font-bold uppercase tracking-widest text-sm rounded-xl hover:brightness-110 transition-all cyan-glow"
+        >
+          Về Trang Chủ
+        </button>
+      </div>
+    </div>
+  );
 
-          <button 
-            onClick={() => navigate('home')}
-            className="w-full py-4 bg-primary text-background-dark font-bold uppercase tracking-widest text-sm rounded-xl hover:brightness-110 transition-all cyan-glow"
-          >
-            Về Trang Chủ
-          </button>
-        </motion.div>
+  if (!bookingId) {
+    return (
+      <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="glass-card rounded-3xl p-10 text-center border border-white/10">
+          <p className="text-white font-semibold">Không tìm thấy booking.</p>
+          <p className="text-slate-400 mt-3">Vui lòng quay lại trang trước để gửi lại yêu cầu.</p>
+        </div>
       </div>
     );
   }
 
+  if (bookingStatus === 'pending') {
+    return renderWaitingScreen();
+  }
+
+  if (bookingStatus === 'confirmed') {
+    return renderConfirmedScreen();
+  }
+
+  if (isSuccess) {
+    return renderConfirmedScreen();
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Payment Methods */}
       <div className="grid grid-cols-3 gap-4">
         <button
           onClick={() => setMethod('bank')}
           className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-3 transition-all ${
-            method === 'bank' 
-              ? 'bg-primary/10 border-primary cyan-glow' 
+            method === 'bank'
+              ? 'bg-primary/10 border-primary cyan-glow'
               : 'glass-card border-white/10 hover:border-white/30'
           }`}
         >
@@ -76,8 +158,8 @@ export default function PaymentStep({ navigate, showToast }: { navigate: (page: 
         <button
           onClick={() => setMethod('card')}
           className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-3 transition-all ${
-            method === 'card' 
-              ? 'bg-primary/10 border-primary cyan-glow' 
+            method === 'card'
+              ? 'bg-primary/10 border-primary cyan-glow'
               : 'glass-card border-white/10 hover:border-white/30'
           }`}
         >
@@ -87,8 +169,8 @@ export default function PaymentStep({ navigate, showToast }: { navigate: (page: 
         <button
           onClick={() => setMethod('ewallet')}
           className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-3 transition-all ${
-            method === 'ewallet' 
-              ? 'bg-primary/10 border-primary cyan-glow' 
+            method === 'ewallet'
+              ? 'bg-primary/10 border-primary cyan-glow'
               : 'glass-card border-white/10 hover:border-white/30'
           }`}
         >
@@ -99,31 +181,33 @@ export default function PaymentStep({ navigate, showToast }: { navigate: (page: 
 
       <AnimatePresence mode="wait">
         {method === 'bank' && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             className="glass-panel rounded-2xl p-6 border border-white/10"
           >
             <div className="flex flex-col md:flex-row gap-8 items-center">
-              {/* QR Code */}
               <div className="w-48 h-48 bg-white rounded-xl p-2 shrink-0 flex items-center justify-center">
                 <QrCode className="w-32 h-32 text-slate-800" />
               </div>
-              
-              {/* Bank Details */}
               <div className="flex-1 w-full space-y-4">
                 <div>
                   <label className="text-xs text-slate-400 uppercase tracking-widest mb-1 block">Ngân hàng</label>
                   <div className="bg-white/5 rounded-lg px-4 py-3 flex justify-between items-center border border-white/5">
-                    <span className="text-white font-medium">Vietcombank (VCB)</span>
+                    <span className="text-white font-medium">{vendorBank?.bankName || '---'}</span>
                   </div>
                 </div>
                 <div>
                   <label className="text-xs text-slate-400 uppercase tracking-widest mb-1 block">Số tài khoản</label>
                   <div className="bg-white/5 rounded-lg px-4 py-3 flex justify-between items-center border border-white/5 group">
-                    <span className="text-white font-mono text-lg tracking-wider">1029 3847 56</span>
-                    <button className="text-primary hover:text-white transition-colors p-1">
+                    <span className="text-white font-mono text-lg tracking-wider">{vendorBank?.accountNumber || '---'}</span>
+                    <button className="text-primary hover:text-white transition-colors p-1" onClick={() => {
+                      if (vendorBank?.accountNumber) {
+                        navigator.clipboard?.writeText(vendorBank.accountNumber);
+                        showToast('Sao chép số tài khoản', 'success');
+                      }
+                    }}>
                       <Copy className="w-4 h-4" />
                     </button>
                   </div>
@@ -131,7 +215,7 @@ export default function PaymentStep({ navigate, showToast }: { navigate: (page: 
                 <div>
                   <label className="text-xs text-slate-400 uppercase tracking-widest mb-1 block">Chủ tài khoản</label>
                   <div className="bg-white/5 rounded-lg px-4 py-3 flex justify-between items-center border border-white/5">
-                    <span className="text-white font-medium">CÔNG TY TNHH CLICKPICK</span>
+                    <span className="text-white font-medium">{vendorBank?.accountHolderName || '---'}</span>
                   </div>
                 </div>
                 <div>
@@ -153,19 +237,37 @@ export default function PaymentStep({ navigate, showToast }: { navigate: (page: 
                   <p className="text-sm text-slate-300"><span className="font-bold text-primary">Tải lên</span> hoặc kéo thả biên lai</p>
                   <p className="text-xs text-slate-500 mt-1">PNG, JPG, PDF (Max. 5MB)</p>
                 </div>
-                <input type="file" className="hidden" />
+                <input ref={inputRef} type="file" className="hidden" onChange={(e) => {
+                  const f = e.target.files?.[0] || null;
+                  setFile(f);
+                }} />
               </label>
+
+              {previewUrl && (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-white mb-3">
+                    <ImageIcon className="w-4 h-4 text-cyan" /> Xem trước biên lai
+                  </div>
+                  <img src={previewUrl} alt="Preview receipt" className="w-full max-h-64 object-contain rounded-xl border border-white/10 bg-black/20" />
+                </div>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <button 
-        onClick={handleConfirm}
-        className="w-full py-4 bg-primary text-background-dark font-bold uppercase tracking-widest text-sm rounded-xl hover:brightness-110 transition-all cyan-glow"
-      >
-        Xác Nhận Đã Thanh Toán
-      </button>
+      <div className="space-y-3">
+        <button
+          onClick={handleConfirm}
+          disabled={loading || bookingStatus !== 'waiting_deposit'}
+          className="w-full py-4 bg-primary text-background-dark font-bold uppercase tracking-widest text-sm rounded-xl hover:brightness-110 transition-all cyan-glow disabled:opacity-60"
+        >
+          {loading ? 'Đang gửi biên lai...' : 'Thanh toán cọc'}
+        </button>
+        {bookingStatus !== 'waiting_deposit' && (
+          <button onClick={() => window.location.reload()} className="w-full py-3 border rounded-xl text-sm">Làm mới trạng thái</button>
+        )}
+      </div>
     </div>
   );
 }

@@ -43,7 +43,11 @@ export default function Register() {
       setIsLoading(false);
       
       setTimeout(() => {
-        navigate('/login');
+        if (formData.role === 'vendor') {
+          navigate('/vendor/registration');
+        } else {
+          navigate('/login');
+        }
       }, 1500);
     } catch (err: any) {
       setIsLoading(false);

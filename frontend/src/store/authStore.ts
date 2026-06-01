@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { findMockUser, MOCK_USERS } from '../lib/mockData';
 import api from '../services/api';
 
 export type UserRole = 'customer' | 'vendor' | 'admin';
@@ -9,6 +8,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  password?: string;
   role: UserRole;
   avatar?: string;
   phone?: string;
@@ -18,7 +18,7 @@ export interface User {
   companyName?: string;
   taxId?: string;
   companyAddress?: string;
-  businessLicense?: string;
+  businessLicense?: string[];
   portfolio?: string[];
   bio?: string;
   createdAt: string;
@@ -51,7 +51,6 @@ export const useAuthStore = create<AuthState>()(
       login: async (email: string, password: string, role: UserRole = 'customer') => {
         set({ isLoading: true });
         try {
-          // Attempt real API login
           const response = await api.post('/auth/login', { email, password });
           const { token, user } = response.data;
 
@@ -62,61 +61,7 @@ export const useAuthStore = create<AuthState>()(
             token,
             isLoading: false,
           });
-        } catch (error: any) {
-          // Network Error or Server offline fallback to mock login
-          const isNetworkError = error.message === 'Network Error' || !error.response;
-
-          if (isNetworkError) {
-            const mockUser = findMockUser(email, password);
-            if (mockUser) {
-              const user: User = {
-                id: `user_${Date.now()}`,
-                email: mockUser.email,
-                name: mockUser.name,
-                role: mockUser.role,
-                avatar: mockUser.avatar,
-                phone: mockUser.phone,
-                dateOfBirth: mockUser.dateOfBirth,
-                address: mockUser.address,
-                city: mockUser.city,
-                companyName: mockUser.companyName,
-                taxId: mockUser.taxId,
-                companyAddress: mockUser.companyAddress,
-                businessLicense: mockUser.businessLicense,
-                bio: mockUser.bio,
-                portfolio: [],
-                createdAt: new Date().toISOString(),
-              };
-
-              set({
-                user,
-                role: user.role,
-                isAuthenticated: true,
-                token: 'mock-token-' + Date.now(),
-                isLoading: false,
-              });
-              return;
-            } else {
-              const genericUser: User = {
-                id: `user_${Date.now()}`,
-                email,
-                name: email.split('@')[0],
-                role,
-                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
-                createdAt: new Date().toISOString(),
-              };
-
-              set({
-                user: genericUser,
-                role,
-                isAuthenticated: true,
-                token: 'mock-token-' + Date.now(),
-                isLoading: false,
-              });
-              return;
-            }
-          }
-
+        } catch (error) {
           set({ isLoading: false });
           throw error;
         }
@@ -125,33 +70,22 @@ export const useAuthStore = create<AuthState>()(
       register: async (data: Partial<User>) => {
         set({ isLoading: true });
         try {
-          // Mock registration delay
-          await new Promise(resolve => setTimeout(resolve, 2000));
-
-          const newUser: User = {
-            id: `user_${Date.now()}`,
-            email: data.email || '',
-            name: data.name || '',
-            role: data.role || 'customer',
-            avatar: data.avatar,
+          const response = await api.post('/auth/register', {
+            name: data.name,
+            email: data.email,
+            password: data.password,
             phone: data.phone,
-            dateOfBirth: data.dateOfBirth,
-            address: data.address,
-            city: data.city,
-            companyName: data.companyName,
-            taxId: data.taxId,
-            companyAddress: data.companyAddress,
-            businessLicense: data.businessLicense,
-            portfolio: data.portfolio,
-            bio: data.bio,
-            createdAt: new Date().toISOString(),
-          };
+            role: data.role || 'customer'
+          });
 
+          const { user } = response.data;
           set({
-            user: newUser,
-            role: newUser.role,
-            isAuthenticated: true,
-            token: 'mock-token-' + Date.now(),
+            user: {
+              ...user,
+              createdAt: new Date().toISOString(),
+            },
+            role: user.role,
+            isAuthenticated: false,
             isLoading: false,
           });
         } catch (error) {
@@ -174,12 +108,20 @@ export const useAuthStore = create<AuthState>()(
         const current = get().user;
         if (!current) return;
 
+        set({ isLoading: true });
         try {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          const response = await api.patch('/auth/profile', {
+            name: data.name,
+            phone: data.phone,
+            avatar: data.avatar,
+            dateOfBirth: data.dateOfBirth,
+            address: data.address
+          });
 
-          const updated = { ...current, ...data };
-          set({ user: updated });
+          const updated = { ...current, ...response.data.user };
+          set({ user: updated, isLoading: false });
         } catch (error) {
+          set({ isLoading: false });
           throw error;
         }
       },

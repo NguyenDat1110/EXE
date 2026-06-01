@@ -1,7 +1,8 @@
 import React from 'react';
 import { Package, Star, Calendar, MessageSquare } from 'lucide-react';
+import BookingTable from '../../components/vendor-dashboard/BookingTable';
 
-export default function VendorDashboard() {
+export default function VendorDashboard({ showToast }: { showToast: (msg: string, type?: 'success' | 'error' | 'info') => void }) {
   return (
     <div className="space-y-8">
       <div>
@@ -55,6 +56,8 @@ export default function VendorDashboard() {
           Nơi đây giúp hiển thị các số liệu thống kê về đơn đặt dịch vụ sự kiện, quản lý các gói dịch vụ (Packages), lịch đặt hàng và giao tiếp với khách hàng.
         </p>
       </div>
+
+      <BookingTable showToast={showToast} />
     </div>
   );
 }

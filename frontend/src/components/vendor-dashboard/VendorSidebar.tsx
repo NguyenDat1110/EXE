@@ -3,7 +3,7 @@ import { LayoutDashboard, CalendarDays, Package, Settings, LogOut } from 'lucide
 const navItems = [
   { icon: LayoutDashboard, label: 'Tổng Quan', path: 'vendor-dashboard' },
   { icon: CalendarDays, label: 'Lịch Trình', path: 'vendor-calendar' },
-  { icon: Package, label: 'Quản Lý Gói', path: 'vendor-packages' },
+  { icon: Package, label: 'Quản Lí Gian Hàng', path: 'vendor-packages' },
   { icon: Settings, label: 'Cài Đặt', path: 'vendor-settings' },
 ];
 

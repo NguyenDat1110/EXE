@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { LayoutDashboard, Briefcase, LogOut, Bell, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Briefcase, LogOut, Bell, Menu, X, User, FileCheck, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function VendorLayout() {
@@ -13,7 +13,10 @@ export function VendorLayout() {
 
   const menuItems = [
     { label: 'Dashboard', path: '/vendor/dashboard', icon: LayoutDashboard },
-    { label: 'Gói Dịch Vụ', path: '/vendor/packages', icon: Briefcase },
+    { label: 'Quản Lí Gian Hàng', path: '/vendor/packages', icon: Briefcase },
+    { label: 'Hồ sơ', path: '/vendor/profile', icon: User },
+    { label: 'Hồ Sơ Doanh Nghiệp', path: '/vendor/registration', icon: FileCheck },
+    { label: 'Nâng Cấp Gói', path: '/vendor/subscription', icon: Zap },
   ];
 
   return (
@@ -188,6 +191,14 @@ export function VendorLayout() {
                           <p className="text-white font-semibold text-sm truncate">{user.name}</p>
                           <p className="text-cyan text-xs font-semibold uppercase tracking-wider">Vendor</p>
                         </div>
+                        <Link
+                          to="/vendor/profile"
+                          onClick={() => setShowProfileMenu(false)}
+                          className="block w-full text-left px-3 py-2 text-silver hover:text-cyan hover:bg-white/5 rounded-lg transition-all text-sm flex items-center gap-2"
+                        >
+                          <User className="w-4 h-4" />
+                          Hồ sơ doanh nghiệp
+                        </Link>
                         <button
                           onClick={() => {
                             logout();

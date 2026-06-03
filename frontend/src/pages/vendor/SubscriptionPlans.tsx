@@ -21,6 +21,7 @@ export function SubscriptionPlans() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [plans, setPlans] = useState<SubscriptionPlans | null>(null);
+  const [vendor, setVendor] = useState<any | null>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<'basic' | 'vip' | null>(null);
@@ -39,6 +40,16 @@ export function SubscriptionPlans() {
     };
 
     fetchPlans();
+    // fetch vendor info to check approval
+    (async () => {
+      try {
+        const res = await api.get('/vendor/info');
+        setVendor(res.data.vendor);
+      } catch (err: any) {
+        if (err.response?.status === 404) setVendor(null);
+        else setVendor(null);
+      }
+    })();
   }, []);
 
   if (!user || user.role !== 'vendor') {
@@ -48,6 +59,47 @@ export function SubscriptionPlans() {
           <div className="glass-panel p-8 rounded-2xl text-center">
             <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
             <p className="text-white text-lg">Chỉ vendor được phê duyệt mới có thể truy cập trang này</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If vendor record not created yet
+  if (vendor === null) {
+    return (
+      <div className="min-h-screen bg-navy py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="glass-panel p-8 rounded-2xl text-center">
+            <AlertCircle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+            <p className="text-white text-lg">Bạn chưa tạo hồ sơ doanh nghiệp. Vui lòng tạo hồ sơ trước khi mua gói.</p>
+            <button
+              onClick={() => navigate('/vendor/registration/form')}
+              className="mt-6 px-6 py-2 bg-cyan text-navy rounded-lg hover:bg-cyan/80 transition-colors"
+            >
+              Tạo Hồ Sơ Doanh Nghiệp
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If vendor exists but not approved
+  if (vendor && vendor.verificationStatus !== 'approved') {
+    return (
+      <div className="min-h-screen bg-navy py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="glass-panel p-8 rounded-2xl text-center border-l-4 border-l-yellow-400 bg-yellow-500/5">
+            <AlertCircle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-2">Hồ Sơ Đang Chờ Duyệt</h2>
+            <p className="text-yellow-300 text-sm">Hồ sơ doanh nghiệp của bạn chưa được phê duyệt. Không thể mua gói lúc này.</p>
+            <button
+              onClick={() => navigate('/vendor/registration')}
+              className="mt-6 px-6 py-2 bg-yellow-500/20 text-yellow-300 font-semibold rounded-lg border border-yellow-500/30 hover:bg-yellow-500/30 transition-colors"
+            >
+              Xem Trạng Thái Hồ Sơ
+            </button>
           </div>
         </div>
       </div>
@@ -85,6 +137,9 @@ export function SubscriptionPlans() {
       </div>
     );
   }
+
+  const currentPlan = vendor?.subscriptionPlan || null;
+  const expiry = vendor?.subscriptionExpiry ? new Date(vendor.subscriptionExpiry) : null;
 
   return (
     <div className="min-h-screen bg-navy py-12 px-4">
@@ -136,10 +191,10 @@ export function SubscriptionPlans() {
 
               <button
                 onClick={() => handleSelectPlan('basic')}
-                disabled={selectedPlan === 'basic'}
+                disabled={selectedPlan === 'basic' || (currentPlan === 'basic' && expiry && expiry > new Date())}
                 className="w-full py-3 rounded-lg font-semibold transition-all bg-cyan/10 text-cyan border border-cyan/50 hover:bg-cyan/20 disabled:opacity-50"
               >
-                {selectedPlan === 'basic' ? 'Đang chuyển hướng...' : 'Chọn Gói Này'}
+                {currentPlan === 'basic' && expiry && expiry > new Date() ? `Đang hoạt động (hết hạn ${expiry.toLocaleDateString()})` : (selectedPlan === 'basic' ? 'Đang chuyển hướng...' : 'Chọn Gói Này')}
               </button>
             </motion.div>
 
@@ -181,10 +236,10 @@ export function SubscriptionPlans() {
 
               <button
                 onClick={() => handleSelectPlan('vip')}
-                disabled={selectedPlan === 'vip'}
+                disabled={selectedPlan === 'vip' || (currentPlan === 'vip' && expiry && expiry > new Date())}
                 className="w-full py-3 rounded-lg font-semibold transition-all bg-gradient-to-r from-yellow-400/20 to-yellow-500/20 text-yellow-400 border border-yellow-400/50 hover:border-yellow-400/80 hover:from-yellow-400/30 hover:to-yellow-500/30 disabled:opacity-50"
               >
-                {selectedPlan === 'vip' ? 'Đang chuyển hướng...' : 'Chọn VIP'}
+                {currentPlan === 'vip' && expiry && expiry > new Date() ? `Đang hoạt động (hết hạn ${expiry.toLocaleDateString()})` : (selectedPlan === 'vip' ? 'Đang chuyển hướng...' : 'Chọn VIP')}
               </button>
             </motion.div>
           </div>

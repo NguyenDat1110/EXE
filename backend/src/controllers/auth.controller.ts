@@ -44,21 +44,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       role: role || 'customer'
     });
 
-    // If vendor role, create vendor record
-    if (role === 'vendor') {
-      await Vendor.create({
-        userId: newUser._id,
-        companyName: '',
-        taxId: undefined,
-        companyAddress: '',
-        businessLicense: [],
-        phone: phone || '',
-        email: email.toLowerCase(),
-        verificationStatus: 'pending',
-        isVerified: false,
-        packages: []
-      });
-    }
+    // NOTE: Do not auto-create a Vendor record at registration.
+    // Vendor records are created when the user submits their business profile.
 
     res.status(201).json({
       message: role === 'vendor' ? 'Đăng ký vendor thành công! Vui lòng hoàn thành thông tin công ty để chúng tôi duyệt.' : 'Đăng ký tài khoản thành công!',

@@ -18,13 +18,14 @@ import {
 import { uploadToCloudinary, uploadToCloudinaryFile } from '../../services/cloudinary';
 import api from '../../services/api';
 
-type BoothEventType = 'TIỆC CƯỚI' | 'HỘI THẢO' | 'SINH NHẬT' | 'KỈ NIỆM';
+type BoothEventType = 'TIỆC SINH NHẬT' | 'TIỆC DOANH NGHIỆP';
 
 type Booth = {
   _id: string;
   name: string;
   eventType: BoothEventType;
   description: string;
+  coverImage?: string;
   isActive: boolean;
 };
 
@@ -48,6 +49,7 @@ type BoothForm = {
   name: string;
   eventType: BoothEventType;
   description: string;
+  coverImage: string;
 };
 
 type PackageForm = {
@@ -59,6 +61,8 @@ type PackageForm = {
   maxParticipants: string;
   depositAmount: string;
   serviceDuration: string;
+  serviceDurationHours: string;
+  serviceDurationMinutes: string;
   images: string[];
   model3dUrl: string;
 };
@@ -72,12 +76,13 @@ type ConfirmDeleteState = {
   message: string;
 };
 
-const EVENT_TYPES: BoothEventType[] = ['TIỆC CƯỚI', 'HỘI THẢO', 'SINH NHẬT', 'KỈ NIỆM'];
+const EVENT_TYPES: BoothEventType[] = ['TIỆC SINH NHẬT', 'TIỆC DOANH NGHIỆP'];
 
 const defaultBoothForm: BoothForm = {
   name: '',
-  eventType: 'TIỆC CƯỚI',
-  description: ''
+  eventType: 'TIỆC SINH NHẬT',
+  description: '',
+  coverImage: ''
 };
 
 const defaultPackageForm: PackageForm = {
@@ -89,19 +94,30 @@ const defaultPackageForm: PackageForm = {
   maxParticipants: '',
   depositAmount: '',
   serviceDuration: '',
+  serviceDurationHours: '',
+  serviceDurationMinutes: '',
   images: [],
   model3dUrl: ''
 };
 
 const normalizeMoneyInput = (value: string): string => {
   const digits = value.replace(/\D/g, '');
-  if (!digits) return '';
-  return Number(digits).toLocaleString('vi-VN');
+  return digits;
 };
 
 const parseMoneyInput = (value: string): number => {
   const digits = value.replace(/\D/g, '');
   return digits ? Number(digits) : 0;
+};
+
+const parseDurationToHourMinute = (duration: string) => {
+  const totalMinutes = Number(duration);
+  if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) {
+    return { hours: '', minutes: '' };
+  }
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return { hours: String(hours), minutes: String(minutes) };
 };
 
 const MAX_PACKAGE_IMAGES = 10;
@@ -126,6 +142,7 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
   const [packageErrors, setPackageErrors] = useState<Partial<Record<keyof PackageForm, string>>>({});
   const [uploadingImages, setUploadingImages] = useState(false);
   const [vendorPlan, setVendorPlan] = useState<'basic' | 'vip' | null>(null);
+  const [vendorInfo, setVendorInfo] = useState<any | null>(undefined);
   const [preview3D, setPreview3D] = useState<{ open: boolean; url: string; name: string }>({
     open: false,
     url: '',
@@ -170,9 +187,11 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
     try {
       const res = await api.get('/vendor/info');
       setVendorPlan((res?.data?.vendor?.subscriptionPlan as 'basic' | 'vip' | undefined) || null);
+      setVendorInfo(res?.data?.vendor || null);
     } catch (error) {
       console.error('Get vendor info error', error);
       setVendorPlan(null);
+      setVendorInfo(null);
     }
   };
 
@@ -203,6 +222,24 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
   }, [selectedBoothId]);
 
   const openCreateBooth = () => {
+    // Ensure vendor has approved profile and active subscription
+    if (vendorInfo === null) {
+      showToast('Vui lòng tạo hồ sơ doanh nghiệp trước.', 'error');
+      return;
+    }
+
+    if (vendorInfo && vendorInfo.verificationStatus !== 'approved') {
+      showToast('Hồ sơ doanh nghiệp chưa được phê duyệt. Không thể tạo gian hàng.', 'error');
+      return;
+    }
+
+    const now = new Date();
+    const hasActiveSubscription = vendorInfo && vendorInfo.subscriptionStatus === 'active' && vendorInfo.subscriptionExpiry && new Date(vendorInfo.subscriptionExpiry) > now;
+    if (!hasActiveSubscription) {
+      showToast('Bạn cần mua gói dịch vụ để tạo gian hàng.', 'error');
+      return;
+    }
+
     setEditingBooth(null);
     setBoothForm(defaultBoothForm);
     setBoothModalOpen(true);
@@ -213,7 +250,8 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
     setBoothForm({
       name: booth.name,
       eventType: booth.eventType,
-      description: booth.description || ''
+      description: booth.description || '',
+      coverImage: booth.coverImage || ''
     });
     setBoothModalOpen(true);
   };
@@ -235,7 +273,8 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
       const payload = {
         name: boothForm.name.trim(),
         eventType: boothForm.eventType,
-        description: boothForm.description.trim()
+        description: boothForm.description.trim(),
+        coverImage: boothForm.coverImage.trim()
       };
 
       if (editingBooth) {
@@ -255,6 +294,25 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
       showToast('Lưu gian hàng thất bại', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleBoothCoverUpload = async (file: File | null) => {
+    if (!file) return;
+
+    const isImage = file.type.startsWith('image/');
+    if (!isImage) {
+      showToast('Vui lòng chọn file ảnh cho cover image', 'error');
+      return;
+    }
+
+    try {
+      const uploaded = await uploadToCloudinary(file, 'eventflow/booth-covers');
+      setBoothForm((prev) => ({ ...prev, coverImage: uploaded.secure_url }));
+      showToast('Đã cập nhật ảnh cover', 'success');
+    } catch (error: any) {
+      console.error('Upload booth cover error', error);
+      showToast(error?.message || 'Không thể tải ảnh cover', 'error');
     }
   };
 
@@ -302,6 +360,24 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
   };
 
   const openCreatePackage = (boothId: string) => {
+    // Ensure vendor approved and has active subscription
+    if (vendorInfo === null) {
+      showToast('Vui lòng tạo hồ sơ doanh nghiệp trước.', 'error');
+      return;
+    }
+
+    if (vendorInfo && vendorInfo.verificationStatus !== 'approved') {
+      showToast('Hồ sơ doanh nghiệp chưa được phê duyệt. Không thể tạo gói.', 'error');
+      return;
+    }
+
+    const now = new Date();
+    const hasActiveSubscription = vendorInfo && vendorInfo.subscriptionStatus === 'active' && vendorInfo.subscriptionExpiry && new Date(vendorInfo.subscriptionExpiry) > now;
+    if (!hasActiveSubscription) {
+      showToast('Bạn cần mua gói dịch vụ để tạo gói.', 'error');
+      return;
+    }
+
     setSelectedBoothId(boothId);
     setEditingPackage(null);
     setPackageForm(defaultPackageForm);
@@ -309,16 +385,20 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
   };
 
   const openEditPackage = (pkg: ServicePackage) => {
+    const parsedDuration = parseDurationToHourMinute(pkg.serviceDuration || '');
+
     setEditingPackage(pkg);
     setPackageForm({
       name: pkg.name,
-      price: pkg.price ? Number(pkg.price).toLocaleString('vi-VN') : '',
+      price: pkg.price ? String(pkg.price) : '',
       description: pkg.description || '',
       includedServices: pkg.includedServices?.length ? [...pkg.includedServices] : [''],
       minParticipants: String(pkg.minParticipants || ''),
       maxParticipants: String(pkg.maxParticipants || ''),
-      depositAmount: pkg.depositAmount ? Number(pkg.depositAmount).toLocaleString('vi-VN') : '',
+      depositAmount: pkg.depositAmount ? String(pkg.depositAmount) : '',
       serviceDuration: pkg.serviceDuration || '',
+      serviceDurationHours: parsedDuration.hours,
+      serviceDurationMinutes: parsedDuration.minutes,
       images: pkg.images?.length ? [...pkg.images] : [],
       model3dUrl: pkg.model3dUrl || ''
     });
@@ -425,6 +505,9 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
     const minParticipants = Number(packageForm.minParticipants);
     const maxParticipants = Number(packageForm.maxParticipants);
     const depositAmount = parseMoneyInput(packageForm.depositAmount);
+    const durationHours = packageForm.serviceDurationHours.trim() ? Number(packageForm.serviceDurationHours) : 0;
+    const durationMinutes = packageForm.serviceDurationMinutes.trim() ? Number(packageForm.serviceDurationMinutes) : 0;
+    const totalServiceDuration = durationHours * 60 + durationMinutes;
     const cleanedServices = packageForm.includedServices.map((x) => x.trim()).filter(Boolean);
 
     if (!packageForm.name.trim()) {
@@ -448,8 +531,14 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
     if (Number.isFinite(depositAmount) && Number.isFinite(price) && depositAmount > price) {
       errors.depositAmount = 'Tiền cọc không được lớn hơn mức giá.';
     }
-    if (!packageForm.serviceDuration.trim()) {
+    if (!packageForm.serviceDurationHours.trim() && !packageForm.serviceDurationMinutes.trim()) {
       errors.serviceDuration = 'Vui lòng nhập thời lượng phục vụ.';
+    } else if (!Number.isFinite(durationHours) || durationHours < 0) {
+      errors.serviceDuration = 'Giờ không hợp lệ.';
+    } else if (!Number.isFinite(durationMinutes) || durationMinutes < 0 || durationMinutes >= 60) {
+      errors.serviceDuration = 'Phút phải nằm trong khoảng 0-59.';
+    } else if (totalServiceDuration <= 0) {
+      errors.serviceDuration = 'Thời lượng phục vụ phải lớn hơn 0.';
     }
     if (cleanedServices.length === 0) {
       errors.includedServices = 'Cần ít nhất một dịch vụ đi kèm.';
@@ -473,7 +562,7 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
       minParticipants: Number(packageForm.minParticipants) || 0,
       maxParticipants: Number(packageForm.maxParticipants) || 0,
       depositAmount,
-      serviceDuration: packageForm.serviceDuration.trim(),
+      serviceDuration: String(totalServiceDuration),
       images: packageForm.images,
       model3dUrl: packageForm.model3dUrl
     };
@@ -637,6 +726,14 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
 
                 <p className="text-sm text-slate-300 mb-4 min-h-[40px]">{booth.description || 'Chưa có mô tả gian hàng.'}</p>
 
+                <div className="mb-4 rounded-2xl overflow-hidden border border-white/10 bg-slate-custom">
+                  {booth.coverImage ? (
+                    <img src={booth.coverImage} alt={booth.name} className="w-full h-40 object-cover" />
+                  ) : (
+                    <div className="w-full h-40 flex items-center justify-center text-slate-400 text-sm">Chưa có ảnh cover</div>
+                  )}
+                </div>
+
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => setSelectedBoothId(booth._id)}
@@ -779,7 +876,7 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="glass-card rounded-2xl w-full max-w-xl bg-background-dark overflow-hidden"
+              className="glass-card rounded-2xl w-full max-w-xl bg-background-dark overflow-hidden max-h-[90vh] flex flex-col"
             >
               <div className="p-6 border-b border-white/10 flex items-center justify-between">
                 <h3 className="text-lg font-bold text-white">{editingBooth ? 'Sửa Gian Hàng' : 'Tạo Gian Hàng'}</h3>
@@ -788,15 +885,46 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
                 </button>
               </div>
 
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
                 <div>
                   <label className="block text-sm text-slate-300 mb-2">Tên gian hàng</label>
                   <input
                     value={boothForm.name}
                     onChange={(e) => setBoothForm((prev) => ({ ...prev, name: e.target.value }))}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary"
-                    placeholder="Ví dụ: Gian hàng tiệc cưới cao cấp"
+                    placeholder="Ví dụ: Gian hàng tiệc doanh nghiệp cao cấp"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-slate-300 mb-2">Ảnh cover gian hàng</label>
+                  <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-4">
+                    {boothForm.coverImage ? (
+                      <div className="space-y-3">
+                        <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-custom">
+                          <img src={boothForm.coverImage} alt="Cover preview" className="h-44 w-full object-cover" />
+                        </div>
+                        <p className="text-xs text-slate-400">Ảnh mới sẽ thay thế ảnh cover hiện tại.</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-400">Chưa có ảnh cover. Tải lên một ảnh để hiển thị ở trang chi tiết.</p>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleBoothCoverUpload(e.target.files?.[0] || null)}
+                      className="mt-3 w-full text-sm text-white/70"
+                    />
+                    {boothForm.coverImage && (
+                      <button
+                        type="button"
+                        onClick={() => setBoothForm((prev) => ({ ...prev, coverImage: '' }))}
+                        className="mt-3 text-xs text-cyan hover:underline"
+                      >
+                        Xóa ảnh cover hiện tại
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -826,7 +954,7 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
                 </div>
               </div>
 
-              <div className="p-6 border-t border-white/10 flex gap-3">
+              <div className="p-6 border-t border-white/10 flex gap-3 shrink-0">
                 <button onClick={closeBoothModal} className="flex-1 py-3 glass-card text-white rounded-xl hover:bg-white/10">
                   Hủy
                 </button>
@@ -864,7 +992,7 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
                 </button>
               </div>
 
-              <div className="p-6 overflow-y-auto space-y-4">
+              <div className="p-6 overflow-y-auto space-y-4 flex-1">
                 <div>
                   <label className="block text-sm text-slate-300 mb-2">Tên gói</label>
                   <input
@@ -940,12 +1068,30 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
 
                 <div>
                   <label className="block text-sm text-slate-300 mb-2">Thời lượng phục vụ</label>
-                  <input
-                    value={packageForm.serviceDuration}
-                    onChange={(e) => setPackageForm((prev) => ({ ...prev, serviceDuration: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary"
-                    placeholder="Ví dụ: 4 giờ"
-                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <input
+                        type="number"
+                        min={0}
+                        value={packageForm.serviceDurationHours}
+                        onChange={(e) => setPackageForm((prev) => ({ ...prev, serviceDurationHours: e.target.value }))}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary"
+                        placeholder="Giờ"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        min={0}
+                        max={59}
+                        value={packageForm.serviceDurationMinutes}
+                        onChange={(e) => setPackageForm((prev) => ({ ...prev, serviceDurationMinutes: e.target.value }))}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary"
+                        placeholder="Phút"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-slate-500 text-xs mt-2">Nhập thời lượng phục vụ bằng giờ và phút.</p>
                   {packageErrors.serviceDuration && <p className="text-red-400 text-xs mt-1">{packageErrors.serviceDuration}</p>}
                 </div>
 

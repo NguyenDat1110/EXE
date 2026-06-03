@@ -13,7 +13,7 @@ export function CustomerLayout() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/explore/wedding?search=${encodeURIComponent(searchQuery.trim())}`);
+      navigate(`/explore/birthday?search=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
 

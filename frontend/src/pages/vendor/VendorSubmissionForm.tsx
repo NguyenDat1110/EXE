@@ -56,6 +56,7 @@ export function VendorSubmissionForm() {
 
   const [vendorStatus, setVendorStatus] = useState<VendorStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
+  const [formErrors, setFormErrors] = useState<Partial<Record<string, string>>>({});
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -221,10 +222,35 @@ export function VendorSubmissionForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setFormErrors({});
 
     // Validate required fields (businessLicense is optional for testing)
-    if (!formData.companyName || !formData.taxId || !formData.companyAddress) {
-      setError('Vui lòng điền đầy đủ thông tin bắt buộc');
+    const localErrors: Partial<Record<string, string>> = {};
+    if (!formData.companyName || !formData.companyName.trim()) localErrors.companyName = 'Tên công ty là bắt buộc.';
+    if (!formData.taxId || !formData.taxId.trim()) localErrors.taxId = 'Mã số thuế là bắt buộc.';
+    if (!formData.companyAddress || !formData.companyAddress.trim()) localErrors.companyAddress = 'Địa chỉ công ty là bắt buộc.';
+    if (!formData.accountHolderName || !(formData as any).accountHolderName.trim()) localErrors.accountHolderName = 'Tên chủ tài khoản là bắt buộc.';
+    if (!formData.accountNumber || !(formData as any).accountNumber.trim()) localErrors.accountNumber = 'Số tài khoản là bắt buộc.';
+    if (!formData.bankName || !(formData as any).bankName.trim()) localErrors.bankName = 'Tên ngân hàng là bắt buộc.';
+
+    // Phone validation (10 digits)
+    if (!formData.phone || !formData.phone.trim()) {
+      localErrors.phone = 'Số điện thoại là bắt buộc.';
+    } else {
+      const digits = formData.phone.replace(/\D/g, '');
+      if (digits.length !== 10) localErrors.phone = 'Số điện thoại phải gồm 10 chữ số.';
+    }
+
+    // Email validation
+    if (!formData.email || !formData.email.trim()) {
+      localErrors.email = 'Email là bắt buộc.';
+    } else {
+      const re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\\.,;:\s@\"]+\.)+[^<>()[\]\\.,;:\s@\"]{2,})$/i;
+      if (!re.test(String(formData.email).toLowerCase())) localErrors.email = 'Email không hợp lệ.';
+    }
+
+    if (Object.keys(localErrors).length > 0) {
+      setFormErrors(localErrors);
       return;
     }
 
@@ -237,7 +263,11 @@ export function VendorSubmissionForm() {
         navigate('/vendor/registration');
       }, 2000);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+      const resp = err.response?.data;
+      if (resp?.errors) {
+        setFormErrors(resp.errors);
+      }
+      setError(resp?.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
     } finally {
       setIsSubmitting(false);
     }
@@ -364,6 +394,7 @@ export function VendorSubmissionForm() {
                   className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
                   placeholder="VD: ABC Event Company"
                 />
+                {formErrors.companyName && <p className="text-red-400 text-sm mt-2">{formErrors.companyName}</p>}
               </label>
 
               <label className="block">
@@ -376,6 +407,7 @@ export function VendorSubmissionForm() {
                   className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
                   placeholder="VD: 0123456789"
                 />
+                {formErrors.taxId && <p className="text-red-400 text-sm mt-2">{formErrors.taxId}</p>}
               </label>
 
               <label className="block">
@@ -388,6 +420,7 @@ export function VendorSubmissionForm() {
                   className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
                   placeholder="VD: 123 Đường ABC, Quận 1, TP HCM"
                 />
+                {formErrors.companyAddress && <p className="text-red-400 text-sm mt-2">{formErrors.companyAddress}</p>}
               </label>
 
               <div className="grid grid-cols-2 gap-4">
@@ -400,6 +433,7 @@ export function VendorSubmissionForm() {
                     onChange={handleInputChange}
                     className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
                   />
+                  {formErrors.phone && <p className="text-red-400 text-sm mt-2">{formErrors.phone}</p>}
                 </label>
 
                 <label className="block">
@@ -411,6 +445,7 @@ export function VendorSubmissionForm() {
                     onChange={handleInputChange}
                     className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
                   />
+                  {formErrors.email && <p className="text-red-400 text-sm mt-2">{formErrors.email}</p>}
                 </label>
               </div>
 
@@ -437,6 +472,7 @@ export function VendorSubmissionForm() {
                     className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
                     placeholder="VD: CÔNG TY TNHH ABC"
                   />
+                  {formErrors.accountHolderName && <p className="text-red-400 text-sm mt-2">{formErrors.accountHolderName}</p>}
                 </label>
 
                 <label className="block">
@@ -449,6 +485,7 @@ export function VendorSubmissionForm() {
                     className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
                     placeholder="VD: 1029384756"
                   />
+                  {formErrors.accountNumber && <p className="text-red-400 text-sm mt-2">{formErrors.accountNumber}</p>}
                 </label>
 
                 <label className="block">
@@ -461,6 +498,7 @@ export function VendorSubmissionForm() {
                     className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
                     placeholder="VD: Vietcombank"
                   />
+                  {formErrors.bankName && <p className="text-red-400 text-sm mt-2">{formErrors.bankName}</p>}
                 </label>
               </div>
             </div>

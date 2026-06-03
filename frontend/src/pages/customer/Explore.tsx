@@ -4,29 +4,19 @@ import { Compass } from 'lucide-react';
 import { ExploreCategoryItem, ExploreCategorySlug, getExploreCategories } from '../../services/exploreApi';
 
 const CATEGORY_CARDS: Record<ExploreCategorySlug, { title: string; image: string; accent: string }> = {
-  wedding: {
-    title: 'Tiệc cưới',
-    image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1200&q=80&auto=format&fit=crop',
-    accent: 'from-rose-500/70'
-  },
-  seminar: {
-    title: 'Hội thảo',
-    image: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=1200&q=80&auto=format&fit=crop',
-    accent: 'from-sky-500/70'
-  },
   birthday: {
     title: 'Sinh nhật',
     image: 'https://images.unsplash.com/photo-1464349153735-7db50ed83c84?w=1200&q=80&auto=format&fit=crop',
     accent: 'from-amber-500/70'
   },
-  anniversary: {
-    title: 'Kỷ niệm',
-    image: 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=1200&q=80&auto=format&fit=crop',
-    accent: 'from-emerald-500/70'
+  business: {
+    title: 'Doanh nghiệp',
+    image: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=1200&q=80&auto=format&fit=crop',
+    accent: 'from-cyan-500/70'
   }
 };
 
-const FALLBACK_ORDER: ExploreCategorySlug[] = ['wedding', 'seminar', 'birthday', 'anniversary'];
+const FALLBACK_ORDER: ExploreCategorySlug[] = ['birthday', 'business'];
 
 export default function Explore() {
   const navigate = useNavigate();

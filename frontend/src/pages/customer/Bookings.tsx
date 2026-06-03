@@ -175,7 +175,7 @@ export default function CustomerBookings() {
                     </div>
                     <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
                       <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">Thời lượng</p>
-                      <p className="font-semibold text-white">{b.package?.serviceDuration || '--'}</p>
+                      <p className="font-semibold text-white">{b.package?.serviceDuration ? `${b.package.serviceDuration} phút` : '--'}</p>
                     </div>
                   </div>
                 </div>

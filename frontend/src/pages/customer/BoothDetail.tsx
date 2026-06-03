@@ -17,6 +17,17 @@ const toCurrency = (value: number) =>
     maximumFractionDigits: 0
   }).format(value || 0);
 
+const formatDuration = (durationMinutes?: string | number | null) => {
+  const totalMinutes = durationMinutes ? Number(durationMinutes) : 0;
+  if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) return null;
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0 && minutes > 0) return `${hours} giờ ${minutes} phút`;
+  if (hours > 0) return `${hours} giờ`;
+  return `${minutes} phút`;
+};
+
 export default function BoothDetail() {
   const { boothId } = useParams();
 
@@ -128,7 +139,9 @@ export default function BoothDetail() {
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                   <p className="text-xs uppercase tracking-[0.16em] text-silver/70">Thời lượng</p>
-                  <p className="mt-2 text-lg font-semibold text-white">{selectedPackage?.serviceDuration || 'Chưa cập nhật'}</p>
+                  <p className="mt-2 text-lg font-semibold text-white">
+                    {selectedPackage?.serviceDuration ? formatDuration(selectedPackage.serviceDuration) : 'Chưa cập nhật'}
+                  </p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                   <p className="text-xs uppercase tracking-[0.16em] text-silver/70">Số người tối thiểu</p>
@@ -187,7 +200,7 @@ export default function BoothDetail() {
                     >
                       <div className="flex items-center justify-between gap-4">
                         <h3 className="font-semibold text-white">{pkg.name}</h3>
-                        <span className="text-sm text-silver/70">{pkg.serviceDuration || 'N/A'}</span>
+                        <span className="text-sm text-silver/70">{pkg.serviceDuration ? formatDuration(pkg.serviceDuration) : 'N/A'}</span>
                       </div>
                       <p className="mt-3 text-cyan font-semibold">{toCurrency(pkg.price)}</p>
                       <p className="mt-2 text-xs text-silver/70">Đặt cọc: {toCurrency(pkg.depositAmount)}</p>

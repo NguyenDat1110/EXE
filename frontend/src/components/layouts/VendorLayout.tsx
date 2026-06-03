@@ -15,7 +15,7 @@ export function VendorLayout() {
     { label: 'Dashboard', path: '/vendor/dashboard', icon: LayoutDashboard },
     { label: 'Quản Lí Gian Hàng', path: '/vendor/packages', icon: Briefcase },
     { label: 'Hồ sơ', path: '/vendor/profile', icon: User },
-    { label: 'Hồ Sơ Doanh Nghiệp', path: '/vendor/registration', icon: FileCheck },
+    { label: 'Đăng Kí Doanh Nghiệp', path: '/vendor/registration', icon: FileCheck },
     { label: 'Nâng Cấp Gói', path: '/vendor/subscription', icon: Zap },
   ];
 

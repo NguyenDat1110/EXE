@@ -106,16 +106,57 @@ export const submitVendorInfo = async (req: AuthRequest, res: Response): Promise
       accountHolderName, accountNumber, bankName } = req.body;
 
     // Validate required fields (businessLicense is optional for testing)
-    if (!companyName || !taxId || !companyAddress) {
-      res.status(400).json({ message: 'Vui lòng cung cấp đầy đủ thông tin doanh nghiệp.' });
+    const fieldErrors: Record<string, string> = {};
+    if (!companyName || !String(companyName).trim()) fieldErrors.companyName = 'Tên công ty là bắt buộc.';
+    if (!taxId || !String(taxId).trim()) fieldErrors.taxId = 'Mã số thuế là bắt buộc.';
+    if (!companyAddress || !String(companyAddress).trim()) fieldErrors.companyAddress = 'Địa chỉ công ty là bắt buộc.';
+    if (!accountHolderName || !String(accountHolderName).trim()) fieldErrors.accountHolderName = 'Tên chủ tài khoản là bắt buộc.';
+    if (!accountNumber || !String(accountNumber).trim()) fieldErrors.accountNumber = 'Số tài khoản là bắt buộc.';
+    if (!bankName || !String(bankName).trim()) fieldErrors.bankName = 'Tên ngân hàng là bắt buộc.';
+
+    // Phone and email validation
+    if (!phone || !String(phone).trim()) {
+      fieldErrors.phone = 'Số điện thoại là bắt buộc.';
+    } else {
+      const digits = String(phone).replace(/\D/g, '');
+      if (digits.length !== 10) fieldErrors.phone = 'Số điện thoại phải gồm 10 chữ số.';
+    }
+
+    if (!email || !String(email).trim()) {
+      fieldErrors.email = 'Email là bắt buộc.';
+    } else {
+      const re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\\.,;:\s@\"]+\.)+[^<>()[\]\\.,;:\s@\"]{2,})$/i;
+      if (!re.test(String(email).toLowerCase())) fieldErrors.email = 'Email không hợp lệ.';
+    }
+
+    if (Object.keys(fieldErrors).length > 0) {
+      res.status(400).json({ message: 'Thiếu trường bắt buộc.', errors: fieldErrors });
       return;
     }
 
-    // Find vendor by userId
-    const vendor = await Vendor.findOne({ userId: req.user.id });
+    // Find vendor by userId; if none exists, create a new vendor record
+    let vendor = await Vendor.findOne({ userId: req.user.id });
     if (!vendor) {
-      res.status(404).json({ message: 'Không tìm thấy hồ sơ vendor.' });
-      return;
+      vendor = await Vendor.create({
+        userId: req.user.id,
+        companyName: '',
+        taxId: undefined,
+        companyAddress: '',
+        businessLicense: [],
+        businessLicenseNames: [],
+        phone: phone || '',
+        email: email?.toLowerCase() || req.user.email || '',
+        website: '',
+        bio: '',
+        avatar: avatar || '',
+        accountHolderName: accountHolderName || '',
+        accountNumber: accountNumber || '',
+        bankName: bankName || '',
+        verificationStatus: 'pending',
+        isVerified: false,
+        subscriptionStatus: 'inactive',
+        packages: []
+      });
     }
 
     // Preserve old identity fields to detect changes

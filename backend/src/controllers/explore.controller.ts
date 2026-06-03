@@ -4,23 +4,19 @@ import { Booth } from '../models/booth.model';
 import { Package } from '../models/package.model';
 import { Vendor } from '../models/vendor.model';
 
-type CategorySlug = 'wedding' | 'seminar' | 'birthday' | 'anniversary';
+type CategorySlug = 'birthday' | 'business';
 
 const CATEGORY_TO_EVENT_TYPE: Record<CategorySlug, string> = {
-  wedding: 'TIỆC CƯỚI',
-  seminar: 'HỘI THẢO',
-  birthday: 'SINH NHẬT',
-  anniversary: 'KỈ NIỆM'
+  birthday: 'TIỆC SINH NHẬT',
+  business: 'TIỆC DOANH NGHIỆP'
 };
 
 const CATEGORY_LABELS: Record<CategorySlug, string> = {
-  wedding: 'Tiệc cưới',
-  seminar: 'Hội thảo',
   birthday: 'Sinh nhật',
-  anniversary: 'Kỷ niệm'
+  business: 'Doanh nghiệp'
 };
 
-const VALID_CATEGORIES: CategorySlug[] = ['wedding', 'seminar', 'birthday', 'anniversary'];
+const VALID_CATEGORIES: CategorySlug[] = ['birthday', 'business'];
 
 const normalizeCategory = (value: unknown): CategorySlug | null => {
   const raw = String(value || '').trim().toLowerCase();
@@ -43,7 +39,7 @@ export const getExploreCategories = async (_req: Request, res: Response): Promis
         const eventType = CATEGORY_TO_EVENT_TYPE[category];
         const count = await Booth.countDocuments({
           isActive: true,
-          $or: [{ category }, { eventType }]
+          $or: [{ category }, { eventType }, { eventType: eventType === 'TIỆC SINH NHẬT' ? 'SINH NHẬT' : 'HỘI THẢO' }]
         });
 
         return {
@@ -74,7 +70,7 @@ export const getBoothsByCategory = async (req: Request, res: Response): Promise<
 
     const baseFilter: any = {
       isActive: true,
-      $or: [{ category }, { eventType }]
+      $or: [{ category }, { eventType }, { eventType: eventType === 'TIỆC SINH NHẬT' ? 'SINH NHẬT' : 'HỘI THẢO' }]
     };
 
     if (search) {

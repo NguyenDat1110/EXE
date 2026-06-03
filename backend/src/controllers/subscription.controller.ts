@@ -36,6 +36,19 @@ export const updateSubscription = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Vendor not found' });
     }
 
+    // Only approved vendors may purchase/activate subscriptions
+    if (vendor.verificationStatus !== 'approved') {
+      return res.status(403).json({ message: 'Hồ sơ doanh nghiệp chưa được phê duyệt. Không thể mua gói.' });
+    }
+
+    // If vendor already has an active subscription for the same plan and it's not expired, block repurchase
+    const now = new Date();
+    if (vendor.subscriptionStatus === 'active' && vendor.subscriptionExpiry && vendor.subscriptionExpiry > now) {
+      if (vendor.subscriptionPlan === plan) {
+        return res.status(400).json({ message: 'Bạn đã có gói này đang hoạt động. Không thể mua lại trước khi hết hạn.' });
+      }
+    }
+
     // Calculate expiry date (365 days from now)
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS].duration);

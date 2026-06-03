@@ -24,6 +24,7 @@ export function SubscriptionCheckout() {
   const plan = (location.state?.plan as 'basic' | 'vip') || 'basic';
 
   const [plans, setPlans] = useState<SubscriptionPlans | null>(null);
+  const [vendor, setVendor] = useState<any | null>(undefined);
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -45,6 +46,16 @@ export function SubscriptionCheckout() {
     };
 
     fetchPlans();
+    // fetch vendor info to ensure approval
+    (async () => {
+      try {
+        const res = await api.get('/vendor/info');
+        setVendor(res.data.vendor);
+      } catch (err: any) {
+        if (err.response?.status === 404) setVendor(null);
+        else setVendor(null);
+      }
+    })();
   }, []);
 
   const currentPlan = plans?.[plan];
@@ -60,6 +71,12 @@ export function SubscriptionCheckout() {
     setError(null);
 
     try {
+      // Prevent purchasing same active plan on client as well
+      if (vendor && vendor.subscriptionStatus === 'active' && vendor.subscriptionPlan === plan && vendor.subscriptionExpiry && new Date(vendor.subscriptionExpiry) > new Date()) {
+        setError('Bạn đã có gói này đang hoạt động. Không thể mua lại trước khi hết hạn.');
+        setIsProcessing(false);
+        return;
+      }
       // Update vendor subscription
       const response = await api.post('/subscription/update', { plan });
       if (response.data) {
@@ -82,6 +99,45 @@ export function SubscriptionCheckout() {
           <div className="glass-panel p-8 rounded-2xl text-center">
             <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
             <p className="text-white text-lg">Chỉ vendor được phê duyệt mới có thể truy cập trang này</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (vendor === null) {
+    return (
+      <div className="min-h-screen bg-navy py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="glass-panel p-8 rounded-2xl text-center">
+            <AlertCircle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+            <p className="text-white text-lg">Bạn chưa tạo hồ sơ doanh nghiệp. Vui lòng tạo hồ sơ trước khi mua gói.</p>
+            <button
+              onClick={() => navigate('/vendor/registration/form')}
+              className="mt-6 px-6 py-2 bg-cyan text-navy rounded-lg hover:bg-cyan/80 transition-colors"
+            >
+              Tạo Hồ Sơ Doanh Nghiệp
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (vendor && vendor.verificationStatus !== 'approved') {
+    return (
+      <div className="min-h-screen bg-navy py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="glass-panel p-8 rounded-2xl text-center border-l-4 border-l-yellow-400 bg-yellow-500/5">
+            <AlertCircle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-2">Hồ Sơ Đang Chờ Duyệt</h2>
+            <p className="text-yellow-300 text-sm">Hồ sơ doanh nghiệp của bạn chưa được phê duyệt. Không thể mua gói lúc này.</p>
+            <button
+              onClick={() => navigate('/vendor/registration')}
+              className="mt-6 px-6 py-2 bg-yellow-500/20 text-yellow-300 font-semibold rounded-lg border border-yellow-500/30 hover:bg-yellow-500/30 transition-colors"
+            >
+              Xem Trạng Thái Hồ Sơ
+            </button>
           </div>
         </div>
       </div>

@@ -19,6 +19,19 @@ export const createPackage = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    // Vendor must be approved and have active subscription to create packages
+    if (vendor.verificationStatus !== 'approved') {
+      res.status(403).json({ message: 'Hồ sơ doanh nghiệp chưa được phê duyệt. Không thể tạo gói.' });
+      return;
+    }
+
+    const now = new Date();
+    const hasActiveSubscription = vendor.subscriptionStatus === 'active' && vendor.subscriptionExpiry && vendor.subscriptionExpiry > now;
+    if (!hasActiveSubscription) {
+      res.status(403).json({ message: 'Bạn cần mua gói (subscription) để tạo gói dịch vụ.' });
+      return;
+    }
+
     const {
       boothId,
       name,

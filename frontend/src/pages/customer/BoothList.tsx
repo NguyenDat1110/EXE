@@ -4,25 +4,15 @@ import { MapPin, Search, Star } from 'lucide-react';
 import { ExploreCategorySlug, ExploreBoothListItem, getBoothsByCategory } from '../../services/exploreApi';
 
 const CATEGORY_META: Record<ExploreCategorySlug, { label: string; hero: string; description: string }> = {
-  wedding: {
-    label: 'Tiệc cưới',
-    hero: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1400&q=80&auto=format&fit=crop',
-    description: 'Không gian và concept cho ngày trọng đại, từ ấm cúng đến xa hoa.'
-  },
-  seminar: {
-    label: 'Hội thảo',
-    hero: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=1400&q=80&auto=format&fit=crop',
-    description: 'Giải pháp setup chuyên nghiệp cho hội nghị, workshop và triển lãm.'
-  },
   birthday: {
-    label: 'Sinh nhật',
+    label: 'Tiệc sinh nhật',
     hero: 'https://images.unsplash.com/photo-1464349153735-7db50ed83c84?w=1400&q=80&auto=format&fit=crop',
     description: 'Các concept sinh nhật sáng tạo, từ trẻ em đến người lớn.'
   },
-  anniversary: {
-    label: 'Kỷ niệm',
-    hero: 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=1400&q=80&auto=format&fit=crop',
-    description: 'Dịch vụ trang trí sự kiện kỷ niệm, lễ thành lập và dấu mốc đặc biệt.'
+  business: {
+    label: 'Tiệc doanh nghiệp',
+    hero: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=1400&q=80&auto=format&fit=crop',
+    description: 'Giải pháp setup chuyên nghiệp cho hội nghị, workshop, lễ ra mắt và sự kiện công ty.'
   }
 };
 

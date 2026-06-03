@@ -4,11 +4,14 @@ import { Booth } from '../models/booth.model';
 import { Vendor } from '../models/vendor.model';
 import { Package } from '../models/package.model';
 
-const EVENT_TYPE_TO_CATEGORY: Record<string, 'wedding' | 'seminar' | 'birthday' | 'anniversary'> = {
-  'TIỆC CƯỚI': 'wedding',
-  'HỘI THẢO': 'seminar',
+const EVENT_TYPE_TO_CATEGORY: Record<string, 'birthday' | 'business'> = {
+  'TIỆC SINH NHẬT': 'birthday',
+  'TIỆC DOANH NGHIỆP': 'business',
+  // Backward-compatible aliases for existing records / old forms.
   'SINH NHẬT': 'birthday',
-  'KỈ NIỆM': 'anniversary'
+  'HỘI THẢO': 'business',
+  'TIỆC CƯỚI': 'business',
+  'KỈ NIỆM': 'business'
 };
 
 const getVendorForUser = async (userId: string) => {
@@ -28,6 +31,19 @@ export const createBooth = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
+    // Vendor must be approved and have an active subscription to create a booth
+    if (vendor.verificationStatus !== 'approved') {
+      res.status(403).json({ message: 'Hồ sơ doanh nghiệp chưa được phê duyệt. Vui lòng nộp hồ sơ và chờ admin duyệt.' });
+      return;
+    }
+
+    const now = new Date();
+    const hasActiveSubscription = vendor.subscriptionStatus === 'active' && vendor.subscriptionExpiry && vendor.subscriptionExpiry > now;
+    if (!hasActiveSubscription) {
+      res.status(403).json({ message: 'Bạn cần mua gói dịch vụ để tạo gian hàng.' });
+      return;
+    }
+
     const { name, eventType, description, address, coverImage, gallery } = req.body;
     if (!name || !eventType) {
       res.status(400).json({ message: 'Vui lòng nhập tên gian hàng và loại sự kiện.' });
@@ -35,6 +51,10 @@ export const createBooth = async (req: AuthRequest, res: Response): Promise<void
     }
 
     const normalizedEventType = String(eventType).trim().toUpperCase();
+    if (!EVENT_TYPE_TO_CATEGORY[normalizedEventType]) {
+      res.status(400).json({ message: 'Loại sự kiện không hợp lệ.' });
+      return;
+    }
 
     const booth = await Booth.create({
       vendorId: vendor._id,
@@ -104,6 +124,10 @@ export const updateBooth = async (req: AuthRequest, res: Response): Promise<void
     if (name !== undefined) booth.name = String(name).trim();
     if (eventType !== undefined) {
       const normalizedEventType = String(eventType).trim().toUpperCase();
+      if (!EVENT_TYPE_TO_CATEGORY[normalizedEventType]) {
+        res.status(400).json({ message: 'Loại sự kiện không hợp lệ.' });
+        return;
+      }
       booth.eventType = normalizedEventType as any;
       booth.category = EVENT_TYPE_TO_CATEGORY[normalizedEventType];
     }

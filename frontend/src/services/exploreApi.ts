@@ -1,6 +1,6 @@
 import api from './api';
 
-export type ExploreCategorySlug = 'wedding' | 'seminar' | 'birthday' | 'anniversary';
+export type ExploreCategorySlug = 'birthday' | 'business';
 
 export interface ExploreCategoryItem {
   slug: ExploreCategorySlug;

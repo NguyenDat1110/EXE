@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Star, MapPin, Phone, Mail, Edit2, Check, X, Plus, Trash2, GripHorizontal, Upload, Loader } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
 import { Avatar } from '../../components/ui/Avatar';
@@ -312,6 +313,30 @@ export function VendorProfile({ showToast }: { showToast?: (msg: string, type?: 
 
     if (user?.role === 'vendor') fetchVendor();
   }, [user]);
+
+  const navigate = useNavigate();
+
+  // If vendor hasn't created a profile yet, show CTA to create one
+  if (user?.role === 'vendor' && vendor === null) {
+    return (
+      <div className="min-h-screen bg-navy py-12 px-4">
+        <div className="max-w-3xl mx-auto">
+          <div className="glass-panel p-8 rounded-2xl text-center">
+            <Plus className="w-16 h-16 text-cyan mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-3">Chưa Có Hồ Sơ Doanh Nghiệp</h2>
+            <p className="text-silver/70 mb-6">Bạn chưa tạo hồ sơ doanh nghiệp. Vui lòng tạo hồ sơ để được duyệt.</p>
+            <button
+              onClick={() => (navigate as any)('/vendor/registration/form')}
+              className="px-8 py-3 bg-gradient-to-r from-cyan to-cyan/70 text-navy font-bold rounded-lg hover:shadow-lg hover:shadow-cyan/30 transition-all inline-flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Tạo Hồ Sơ Doanh Nghiệp
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const tabs: TabItem[] = [
     {

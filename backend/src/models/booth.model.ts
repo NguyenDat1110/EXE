@@ -1,7 +1,7 @@
 import { Schema, model, Document, Types } from 'mongoose';
 
-export type BoothEventType = 'TIỆC CƯỚI' | 'HỘI THẢO' | 'SINH NHẬT' | 'KỈ NIỆM';
-export type BoothCategory = 'wedding' | 'seminar' | 'birthday' | 'anniversary';
+export type BoothEventType = 'TIỆC SINH NHẬT' | 'TIỆC DOANH NGHIỆP';
+export type BoothCategory = 'birthday' | 'business';
 
 export interface IBooth extends Document {
   vendorId: Types.ObjectId;
@@ -23,13 +23,13 @@ const boothSchema = new Schema<IBooth>(
     name: { type: String, required: true, trim: true },
     category: {
       type: String,
-      enum: ['wedding', 'seminar', 'birthday', 'anniversary'],
+      enum: ['birthday', 'business'],
       required: false,
       index: true
     },
     eventType: {
       type: String,
-      enum: ['TIỆC CƯỚI', 'HỘI THẢO', 'SINH NHẬT', 'KỈ NIỆM'],
+      enum: ['TIỆC SINH NHẬT', 'TIỆC DOANH NGHIỆP'],
       required: true
     },
     description: { type: String, default: '', trim: true },

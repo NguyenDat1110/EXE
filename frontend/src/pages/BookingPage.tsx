@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import StepIndicator from '../components/booking/StepIndicator';
 import BookingForm from '../components/booking/BookingForm';
 import BookingSummary from '../components/booking/BookingSummary';
+import BookingPayment from '../components/booking/BookingPayment';
 import { createBooking, getVendorAvailability } from '../services/bookingsApi';
 import { getBoothDetail, ExploreBoothPackage, ExploreBoothDetail, ExploreBoothDetailVendor } from '../services/exploreApi';
 
@@ -100,8 +101,7 @@ export default function BookingPage({ showToast }: { showToast: (msg: string, ty
           status: booking.status,
           booking
         }));
-        showToast('Đã gửi yêu cầu đặt lịch. Vui lòng chờ vendor duyệt.', 'success');
-        navigate('/my-bookings');
+        setCurrentStep(3);
       } catch (err: any) {
         console.error('Create booking error', err);
         return showToast(err?.response?.data?.message || err?.message || 'Không thể tạo booking', 'error');
@@ -109,7 +109,7 @@ export default function BookingPage({ showToast }: { showToast: (msg: string, ty
       return;
     }
 
-    setCurrentStep((prev) => Math.min(prev + 1, 2));
+    setCurrentStep((prev) => Math.min(prev + 1, 3));
   };
 
   const handleBack = () => {
@@ -173,6 +173,7 @@ export default function BookingPage({ showToast }: { showToast: (msg: string, ty
               />
             )}
             {currentStep === 2 && <BookingSummary data={{ ...bookingData, package: selectedPackage, vendor }} onNext={() => handleNext()} onBack={handleBack} />}
+            {currentStep === 3 && <BookingPayment bookingData={bookingData} />}
           </div>
         </main>
       </div>

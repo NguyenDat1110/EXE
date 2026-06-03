@@ -8,6 +8,7 @@ import subscriptionRoutes from './routes/subscription.routes';
 import packageRoutes from './routes/package.routes';
 import boothRoutes from './routes/booth.routes';
 import bookingRoutes from './routes/booking.routes';
+import paymentRoutes from './routes/payment.routes';
 // exploreRoutes will be loaded dynamically to avoid crashing the dev server when files are being edited
 let exploreRoutes: any = null;
 try {
@@ -47,6 +48,9 @@ app.use('/api/booths', boothRoutes);
 
 // Booking Routes
 app.use('/api/bookings', bookingRoutes);
+
+// Payment Routes
+app.use('/api/payment', paymentRoutes);
 
 // Public Explore Routes (mounted only when available)
 if (exploreRoutes) {

@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react';
 
 export default function StepIndicator({ currentStep }: { currentStep: number }) {
-  const steps = ['Thông Tin', 'Xác Nhận'];
+  const steps = ['Thông Tin', 'Xác Nhận', 'Thanh Toán Cọc'];
 
   return (
     <div className="flex items-center justify-center w-full max-w-3xl mx-auto mb-12">

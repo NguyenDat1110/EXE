@@ -22,10 +22,12 @@ import BoothList from './pages/customer/BoothList';
 import BoothDetail from './pages/customer/BoothDetail';
 import BookingPage from './pages/BookingPage';
 import CustomerBookings from './pages/customer/Bookings';
+
 import { CustomerProfile } from './pages/profile/CustomerProfile';
 import { VendorProfile } from './pages/profile/VendorProfile';
 import VendorDashboard from './pages/vendor/Dashboard';
 import VendorPackages from './pages/vendor/Packages';
+import VendorStageBuilder from './pages/vendor/Packages/StageBuilder';
 import { VendorSubmissionStatus } from './pages/vendor/VendorSubmissionStatus';
 import { VendorSubmissionForm } from './pages/vendor/VendorSubmissionForm';
 import { SubscriptionPlans } from './pages/vendor/SubscriptionPlans';
@@ -92,6 +94,7 @@ export default function App() {
                 <Route path="/my-bookings" element={<CustomerBookings />} />
                 <Route path="/profile" element={<CustomerProfile />} />
               </Route>
+
             </Route>
           </Route>
 
@@ -100,16 +103,19 @@ export default function App() {
             <Route element={<RoleRoute allowedRoles={['vendor']} />}>
               <Route element={<VendorLayout />}>
                 <Route path="/vendor/dashboard" element={<VendorDashboard showToast={showToast} />} />
-                <Route path="/vendor/packages" element={<VendorPackages />} />
+                <Route path="/vendor/packages" element={<VendorPackages showToast={showToast} />} />
                 <Route path="/vendor/profile" element={<VendorProfile showToast={showToast} />} />
                 <Route path="/vendor/registration" element={<VendorSubmissionStatus />} />
                 <Route path="/vendor/registration/form" element={<VendorSubmissionForm />} />
                 <Route path="/vendor/subscription" element={<SubscriptionPlans />} />
                 <Route path="/vendor/subscription-checkout" element={<SubscriptionCheckout />} />
               </Route>
+              {/* Full-screen Vendor pages without VendorLayout header */}
+              <Route path="/vendor/packages/:packageId/stage-builder" element={<VendorStageBuilder showToast={showToast} />} />
+              <Route path="/vendor/stage-builder-demo" element={<VendorStageBuilder showToast={showToast} />} />
             </Route>
           </Route>
-
+          
           {/* Admin Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route element={<RoleRoute allowedRoles={['admin']} />}>
@@ -135,17 +141,16 @@ export default function App() {
                 initial={{ opacity: 0, x: 50, scale: 0.9 }}
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border backdrop-blur-md pointer-events-auto ${
-                  toast.type === 'success' ? 'bg-cyan/10 border-cyan/30 text-cyan' :
-                  toast.type === 'error' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
-                  'bg-white/5 border-white/10 text-white'
-                }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border backdrop-blur-md pointer-events-auto ${toast.type === 'success' ? 'bg-cyan/10 border-cyan/30 text-cyan' :
+                    toast.type === 'error' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
+                      'bg-white/5 border-white/10 text-white'
+                  }`}
               >
                 {toast.type === 'success' && <CheckCircle className="w-5 h-5" />}
                 {toast.type === 'error' && <AlertCircle className="w-5 h-5" />}
                 {toast.type === 'info' && <Info className="w-5 h-5" />}
                 <span className="text-sm font-medium">{toast.message}</span>
-                <button 
+                <button
                   onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
                   className="ml-2 opacity-50 hover:opacity-100 transition-opacity focus:outline-none"
                 >

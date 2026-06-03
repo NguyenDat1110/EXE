@@ -105,6 +105,7 @@ export function CustomerLayout() {
                       >
                         Đơn đặt của tôi
                       </Link>
+
                       <Link
                         to="/profile"
                         onClick={() => setShowProfileMenu(false)}

@@ -75,7 +75,7 @@ export default function BookingSummary({ data, onNext, onBack }: { data: any, on
           onClick={onNext}
           className="flex-1 py-4 bg-primary text-background-dark font-bold uppercase tracking-widest text-sm rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 cyan-glow"
         >
-          Gửi yêu cầu đặt lịch <CheckCircle2 className="w-4 h-4" />
+          Tiếp tục thanh toán cọc <CheckCircle2 className="w-4 h-4" />
         </button>
       </div>
     </div>

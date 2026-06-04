@@ -25,6 +25,7 @@ export interface IBooking extends Document {
   customerCompletedAt?: Date;
   finalPaidAt?: Date;
   finalReceiptUrl?: string;
+  isReviewed?: boolean;
   bookingDate: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -56,6 +57,7 @@ const bookingSchema = new Schema<IBooking>(
     customerCompletedAt: { type: Date },
     finalPaidAt: { type: Date },
     finalReceiptUrl: { type: String },
+    isReviewed: { type: Boolean, default: false },
     bookingDate: { type: Date, default: Date.now }
   },
   { timestamps: true }

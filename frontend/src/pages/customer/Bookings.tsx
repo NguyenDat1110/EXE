@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, MapPin, DollarSign, Clock3, AlertTriangle, Image as ImageIcon, Banknote, X, Upload, CheckCircle2 } from 'lucide-react';
+import { CalendarDays, MapPin, DollarSign, Clock3, AlertTriangle, Image as ImageIcon, Banknote, X, Upload, CheckCircle2, Star } from 'lucide-react';
 import {
   cancelBooking,
   confirmCustomerComplete,
@@ -7,6 +7,7 @@ import {
   payBookingDeposit,
   payFinalBalance
 } from '../../services/bookingsApi';
+import { createReview } from '../../services/reviewApi';
 
 const statusLabel = (status: string) => {
   if (status === 'completed') return { text: 'Đã hoàn tất', classes: 'bg-green-500/20 text-green-400 border border-green-500/30' };
@@ -28,6 +29,33 @@ export default function CustomerBookings() {
   const [paymentFile, setPaymentFile] = useState<File | null>(null);
   const [paymentPreview, setPaymentPreview] = useState<string | null>(null);
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+
+  // Review states
+  const [reviewModalBooking, setReviewModalBooking] = useState<any | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewHoverRating, setReviewHoverRating] = useState<number | null>(null);
+
+  const handleReviewSubmit = async () => {
+    if (!reviewModalBooking) return;
+    setReviewSubmitting(true);
+    try {
+      await createReview({
+        bookingId: reviewModalBooking._id,
+        rating: reviewRating,
+        comment: reviewComment
+      });
+      await loadBookings();
+      setReviewModalBooking(null);
+      setReviewRating(5);
+      setReviewComment('');
+    } catch (error) {
+      console.error('Review submit error:', error);
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   const loadBookings = async () => {
     setLoading(true);
@@ -228,9 +256,28 @@ export default function CustomerBookings() {
                     </span>
                   )}
                   {b.status === 'completed' && (
-                    <span className="px-5 py-2.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-300 text-xs uppercase tracking-wider">
-                      Đơn đã hoàn tất
-                    </span>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="px-5 py-2.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-300 text-xs uppercase tracking-wider">
+                        Đơn đã hoàn tất
+                      </span>
+                      {b.isReviewed ? (
+                        <span className="px-5 py-2.5 rounded-full border border-white/10 bg-white/[0.03] text-silver/60 text-xs uppercase tracking-wider flex items-center gap-1.5 font-bold">
+                          <Star className="w-4 h-4 fill-current text-yellow-400" /> Đã đánh giá
+                        </span>
+                      ) : (
+                        <button
+                          disabled={isLoading}
+                          onClick={() => {
+                            setReviewModalBooking(b);
+                            setReviewRating(5);
+                            setReviewComment('');
+                          }}
+                          className="px-5 py-2.5 bg-cyan/15 hover:bg-cyan/25 border border-cyan/35 text-cyan hover:text-white rounded-full font-bold text-xs uppercase tracking-wider transition-all duration-300 disabled:opacity-60 flex items-center gap-1.5"
+                        >
+                          <Star className="w-4 h-4" /> Viết đánh giá
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -349,6 +396,91 @@ export default function CustomerBookings() {
                     {paymentSubmitting ? 'Đang gửi...' : 'Thanh toán cọc'}
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reviewModalBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#111827] shadow-2xl overflow-hidden">
+            <div className="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-5">
+              <div>
+                <h2 className="text-2xl font-bold text-white">Đánh giá dịch vụ</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Chia sẻ trải nghiệm của bạn về dịch vụ của <span className="text-cyan font-semibold">{reviewModalBooking.vendor?.name || 'nhà cung cấp'}</span>.
+                </p>
+              </div>
+              <button
+                onClick={() => setReviewModalBooking(null)}
+                className="rounded-full p-2 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
+                aria-label="Đóng modal"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-6 space-y-6">
+              <div className="flex flex-col items-center justify-center gap-3">
+                <span className="text-sm font-semibold text-silver/80">Bạn đánh giá thế nào?</span>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const isFilled = reviewHoverRating !== null ? star <= reviewHoverRating : star <= reviewRating;
+                    return (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewRating(star)}
+                        onMouseEnter={() => setReviewHoverRating(star)}
+                        onMouseLeave={() => setReviewHoverRating(null)}
+                        className="p-1 focus:outline-none transition-transform hover:scale-110"
+                      >
+                        <Star
+                          className={`w-10 h-10 transition-colors ${
+                            isFilled ? 'text-yellow-400 fill-current' : 'text-slate-600'
+                          }`}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+                <span className="text-xs text-cyan font-bold tracking-wider uppercase mt-1">
+                  {reviewRating === 5 && 'Tuyệt vời! (5/5)'}
+                  {reviewRating === 4 && 'Rất tốt (4/5)'}
+                  {reviewRating === 3 && 'Bình thường (3/5)'}
+                  {reviewRating === 2 && 'Kém (2/5)'}
+                  {reviewRating === 1 && 'Rất tệ (1/5)'}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-silver/80 block">Ý kiến đóng góp (Không bắt buộc)</label>
+                <textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Nhập trải nghiệm của bạn tại đây để giúp cộng đồng và nhà cung cấp cải thiện hơn..."
+                  rows={4}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white placeholder:text-silver/30 focus:outline-none focus:border-cyan transition-colors resize-none text-sm"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setReviewModalBooking(null)}
+                  className="flex-1 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-white/5 transition-colors"
+                  type="button"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleReviewSubmit}
+                  disabled={reviewSubmitting}
+                  className="flex-1 rounded-xl bg-cyan px-4 py-3 text-sm font-bold uppercase tracking-widest text-background-dark hover:bg-cyan/90 disabled:opacity-60 transition-colors"
+                  type="button"
+                >
+                  {reviewSubmitting ? 'Đang gửi...' : 'Gửi đánh giá'}
+                </button>
               </div>
             </div>
           </div>

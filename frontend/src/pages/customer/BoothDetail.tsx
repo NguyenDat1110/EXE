@@ -9,6 +9,7 @@ import {
 } from '../../services/exploreApi';
 import { getMyBookings } from '../../services/bookingsApi';
 import { useAuthStore } from '../../store/authStore';
+import { getVendorReviews } from '../../services/reviewApi';
 
 const toCurrency = (value: number) =>
   new Intl.NumberFormat('vi-VN', {
@@ -39,6 +40,7 @@ export default function BoothDetail() {
   const [packages, setPackages] = useState<ExploreBoothPackage[]>([]);
   const [selectedPackageId, setSelectedPackageId] = useState<string>('');
   const [contactUnlocked, setContactUnlocked] = useState(false);
+  const [reviews, setReviews] = useState<any[]>([]);
 
   useEffect(() => {
     if (!boothId) return;
@@ -52,6 +54,15 @@ export default function BoothDetail() {
         setBooth(result.booth);
         setPackages(result.packages || []);
         setSelectedPackageId(result.packages?.[0]?._id || '');
+
+        if (result.vendor?._id) {
+          try {
+            const reviewResult = await getVendorReviews(result.vendor._id);
+            setReviews(reviewResult || []);
+          } catch (reviewErr) {
+            console.error('Failed to load reviews:', reviewErr);
+          }
+        }
 
         if (user && result.vendor?._id) {
           try {
@@ -227,6 +238,56 @@ export default function BoothDetail() {
                 </div>
               </div>
             )}
+
+            {/* Reviews Section */}
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 space-y-6">
+              <div className="flex items-center justify-between border-b border-white/10 pb-4 flex-wrap gap-3">
+                <div>
+                  <h3 className="text-2xl font-bold text-white">Đánh giá từ khách hàng</h3>
+                  <p className="text-xs text-silver/60 mt-1">Những nhận xét thực tế từ khách hàng đã trải nghiệm dịch vụ.</p>
+                </div>
+                <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2 rounded-2xl">
+                  <Star className="w-5 h-5 fill-current text-yellow-400" />
+                  <span className="text-lg font-bold text-white">
+                    {vendor.averageRating > 0 ? vendor.averageRating.toFixed(1) : 'N/A'}
+                  </span>
+                  <span className="text-sm text-silver/60">({reviews.length} đánh giá)</span>
+                </div>
+              </div>
+
+              {reviews.length === 0 ? (
+                <div className="text-center py-8 text-silver/50 text-sm">
+                  Chưa có đánh giá nào cho nhà cung cấp này.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map((rev) => (
+                    <div key={rev._id} className="border border-white/5 bg-white/[0.01] rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={rev.customerId?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rev.customerId?._id}`}
+                            alt={rev.customerId?.name}
+                            className="w-10 h-10 rounded-full border border-white/10 object-cover"
+                          />
+                          <div>
+                            <h4 className="text-sm font-semibold text-white">{rev.customerId?.name || 'Khách hàng'}</h4>
+                            <p className="text-xs text-silver/50">{new Date(rev.createdAt).toLocaleDateString('vi-VN')}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 bg-yellow-400/10 px-2.5 py-1 rounded-full text-yellow-400 text-xs font-bold">
+                          <Star className="w-3.5 h-3.5 fill-current" />
+                          <span>{rev.rating} ★</span>
+                        </div>
+                      </div>
+                      {rev.comment && (
+                        <p className="text-sm text-silver/80 pl-1">{rev.comment}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <aside className="space-y-6">

@@ -145,6 +145,7 @@ const formatBooking = (booking: any) => {
     customerCompletedAt: booking.customerCompletedAt || null,
     finalPaidAt: booking.finalPaidAt || null,
     finalReceiptUrl: booking.finalReceiptUrl || null,
+    isReviewed: booking.isReviewed || false,
     createdAt: booking.createdAt,
     updatedAt: booking.updatedAt
   };

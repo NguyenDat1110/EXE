@@ -41,18 +41,20 @@ const parseLocalDateOnly = (value: string): Date | null => {
 
 const parseDurationMinutes = (value?: string): number => {
   if (!value) return 0;
+
   const raw = String(value).trim();
   const match = raw.match(/(\d+(?:[.,]\d+)?)/);
+
   if (!match) return 0;
 
-  const amount = Number(match[1].replace(',', '.'));
-  if (Number.isNaN(amount) || amount < 0) return 0;
+  const amount = Number(match[1].replace(",", "."));
 
-  if (/(phút|minute|min)/i.test(raw)) {
-    return Math.round(amount);
+  if (/(giờ|hour|hr|h)/i.test(raw)) {
+    return Math.round(amount * 60);
   }
 
-  return Math.round(amount * 60);
+  // mặc định là phút
+  return Math.round(amount);
 };
 
 const combineDateAndTime = (dateValue: unknown, timeValue: unknown): Date | null => {

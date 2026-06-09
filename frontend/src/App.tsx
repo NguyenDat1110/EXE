@@ -35,6 +35,9 @@ import { SubscriptionCheckout } from './pages/vendor/SubscriptionCheckout';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminUsers from './pages/admin/Users';
 import { AdminVendors } from './pages/admin/AdminVendors';
+import AdminArticles from './pages/admin/AdminArticles';
+import Timeline from './pages/customer/Timeline';
+import VendorPosts from './pages/vendor/VendorPosts';
 import Unauthorized from './pages/Unauthorized';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -92,6 +95,7 @@ export default function App() {
                 <Route path="/booths/:boothId" element={<BoothDetail />} />
                 <Route path="/booths/:boothId/book" element={<BookingPage showToast={showToast} />} />
                 <Route path="/my-bookings" element={<CustomerBookings />} />
+                <Route path="/timeline" element={<Timeline />} />
                 <Route path="/profile" element={<CustomerProfile />} />
               </Route>
 
@@ -108,6 +112,7 @@ export default function App() {
                 <Route path="/vendor/registration" element={<VendorSubmissionStatus />} />
                 <Route path="/vendor/registration/form" element={<VendorSubmissionForm />} />
                 <Route path="/vendor/subscription" element={<SubscriptionPlans />} />
+                <Route path="/vendor/posts" element={<VendorPosts />} />
                 <Route path="/vendor/subscription-checkout" element={<SubscriptionCheckout />} />
               </Route>
               {/* Full-screen Vendor pages without VendorLayout header */}
@@ -123,6 +128,7 @@ export default function App() {
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/vendors" element={<AdminVendors />} />
+                <Route path="/admin/articles" element={<AdminArticles />} />
               </Route>
             </Route>
           </Route>

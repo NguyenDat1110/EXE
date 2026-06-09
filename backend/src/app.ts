@@ -10,6 +10,7 @@ import boothRoutes from './routes/booth.routes';
 import bookingRoutes from './routes/booking.routes';
 import paymentRoutes from './routes/payment.routes';
 import reviewRoutes from './routes/review.routes';
+import postRoutes from './routes/post.routes';
 // exploreRoutes will be loaded dynamically to avoid crashing the dev server when files are being edited
 let exploreRoutes: any = null;
 try {
@@ -55,6 +56,9 @@ app.use('/api/payment', paymentRoutes);
 
 // Review Routes
 app.use('/api/reviews', reviewRoutes);
+
+// Post Routes
+app.use('/api/posts', postRoutes);
 
 // Public Explore Routes (mounted only when available)
 if (exploreRoutes) {

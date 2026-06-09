@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { Search, CalendarDays, LogOut, Bell, User } from 'lucide-react';
+import { Search, CalendarDays, LogOut, Bell, User, Rss } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function CustomerLayout() {
@@ -49,6 +49,15 @@ export function CustomerLayout() {
 
         {/* Action Controls */}
         <div className="flex items-center gap-4">
+          {/* Timeline shortcut */}
+          <Link
+            to="/timeline"
+            title="Dòng thời gian"
+            className="p-2 text-silver hover:text-cyan hover:bg-white/5 rounded-full transition-colors"
+          >
+            <Rss className="w-5 h-5" />
+          </Link>
+
           <Link
             to="/my-bookings"
             title="Đơn đặt chỗ của tôi"
@@ -99,6 +108,14 @@ export function CustomerLayout() {
                         Khám phá dịch vụ
                       </Link>
                       <Link
+                        to="/timeline"
+                        onClick={() => setShowProfileMenu(false)}
+                        className="flex items-center gap-2 w-full text-left px-3 py-2 text-silver hover:text-cyan hover:bg-white/5 rounded-lg transition-all text-sm"
+                      >
+                        <Rss className="w-4 h-4" />
+                        Dòng Thời Gian
+                      </Link>
+                      <Link
                         to="/my-bookings"
                         onClick={() => setShowProfileMenu(false)}
                         className="block w-full text-left px-3 py-2 text-silver hover:text-cyan hover:bg-white/5 rounded-lg transition-all text-sm"
@@ -109,7 +126,7 @@ export function CustomerLayout() {
                       <Link
                         to="/profile"
                         onClick={() => setShowProfileMenu(false)}
-                        className="block w-full text-left px-3 py-2 text-silver hover:text-cyan hover:bg-white/5 rounded-lg transition-all text-sm flex items-center gap-2"
+                        className="flex items-center gap-2 w-full text-left px-3 py-2 text-silver hover:text-cyan hover:bg-white/5 rounded-lg transition-all text-sm"
                       >
                         <User className="w-4 h-4" />
                         Hồ sơ cá nhân

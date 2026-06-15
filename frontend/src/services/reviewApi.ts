@@ -17,6 +17,8 @@ export interface ReviewItem {
   vendorId: string;
   rating: number;
   comment: string;
+  vendorReply?: string;
+  repliedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,4 +36,9 @@ export const getVendorReviews = async (vendorId: string): Promise<ReviewItem[]> 
 export const getBookingReview = async (bookingId: string): Promise<ReviewItem | null> => {
   const res = await api.get(`/reviews/booking/${bookingId}`);
   return res.data?.review || null;
+};
+
+export const replyToReview = async (reviewId: string, reply: string) => {
+  const res = await api.patch(`/reviews/${reviewId}/reply`, { reply });
+  return res.data;
 };

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { Shield, Settings, Users, FileText, Wallet, LogOut, Bell, Menu, X, CheckCircle } from 'lucide-react';
+import { Shield, Settings, Users, FileText, Wallet, LogOut, Menu, X, CheckCircle, Package, MessageSquareWarning, Crown, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { NotificationDropdown } from '../common/NotificationDropdown';
 
 export function AdminLayout() {
   const { user, logout } = useAuthStore();
@@ -12,11 +13,14 @@ export function AdminLayout() {
   const location = useLocation();
 
   const menuItems = [
-    { label: 'Quản lý hệ thống', path: '/admin/dashboard', icon: Settings },
-    { label: 'Tài khoản', path: '/admin/users', icon: Users },
-    { label: 'Phê Duyệt Vendor', path: '/admin/vendors', icon: CheckCircle },
+    { label: 'Tổng quan (UC-37)', path: '/admin/dashboard', icon: Settings },
+    { label: 'Quản lý người dùng (UC-38)', path: '/admin/users', icon: Users },
+    { label: 'Duyệt Vendor', path: '/admin/vendors', icon: CheckCircle },
+    { label: 'Quản lý Package (UC-39)', path: '/admin/packages', icon: Package },
+    { label: 'Xử lý khiếu nại (UC-40)', path: '/admin/complaints', icon: MessageSquareWarning },
+    { label: 'Quản lý Subscription (UC-41)', path: '/admin/subscriptions', icon: Crown },
+    { label: 'Log hoạt động (UC-42)', path: '/admin/logs', icon: Activity },
     { label: 'Bài viết', path: '/admin/articles', icon: FileText },
-    { label: 'Đối soát', path: '/admin/reconciliation', icon: Wallet },
   ];
 
   return (
@@ -151,10 +155,7 @@ export function AdminLayout() {
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="p-2 text-silver hover:text-cyan hover:bg-white/5 rounded-full transition-colors relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-cyan rounded-full" />
-            </button>
+            <NotificationDropdown />
 
             {user && (
               <div className="relative">

@@ -11,6 +11,7 @@ import bookingRoutes from './routes/booking.routes';
 import paymentRoutes from './routes/payment.routes';
 import reviewRoutes from './routes/review.routes';
 import postRoutes from './routes/post.routes';
+import notificationRoutes from './routes/notification.routes';
 // exploreRoutes will be loaded dynamically to avoid crashing the dev server when files are being edited
 let exploreRoutes: any = null;
 try {
@@ -59,6 +60,9 @@ app.use('/api/reviews', reviewRoutes);
 
 // Post Routes
 app.use('/api/posts', postRoutes);
+
+// Notification Routes
+app.use('/api/notifications', notificationRoutes);
 
 // Public Explore Routes (mounted only when available)
 if (exploreRoutes) {

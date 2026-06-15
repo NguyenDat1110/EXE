@@ -36,8 +36,13 @@ import AdminDashboard from './pages/admin/Dashboard';
 import AdminUsers from './pages/admin/Users';
 import { AdminVendors } from './pages/admin/AdminVendors';
 import AdminArticles from './pages/admin/AdminArticles';
+import AdminPackages from './pages/admin/AdminPackages';
+import AdminComplaints from './pages/admin/AdminComplaints';
+import AdminSubscriptions from './pages/admin/AdminSubscriptions';
+import AdminLogs from './pages/admin/AdminLogs';
 import Timeline from './pages/customer/Timeline';
 import VendorPosts from './pages/vendor/VendorPosts';
+import VendorReviews from './pages/vendor/VendorReviews';
 import Unauthorized from './pages/Unauthorized';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -113,6 +118,7 @@ export default function App() {
                 <Route path="/vendor/registration/form" element={<VendorSubmissionForm />} />
                 <Route path="/vendor/subscription" element={<SubscriptionPlans />} />
                 <Route path="/vendor/posts" element={<VendorPosts />} />
+                <Route path="/vendor/reviews" element={<VendorReviews showToast={showToast} />} />
                 <Route path="/vendor/subscription-checkout" element={<SubscriptionCheckout />} />
               </Route>
               {/* Full-screen Vendor pages without VendorLayout header */}
@@ -128,7 +134,11 @@ export default function App() {
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/vendors" element={<AdminVendors />} />
+                <Route path="/admin/packages" element={<AdminPackages />} />
                 <Route path="/admin/articles" element={<AdminArticles />} />
+                <Route path="/admin/complaints" element={<AdminComplaints />} />
+                <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
+                <Route path="/admin/logs" element={<AdminLogs />} />
               </Route>
             </Route>
           </Route>

@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 import { Booking } from '../models/booking.model';
 import { Review } from '../models/review.model';
 import { Vendor } from '../models/vendor.model';
+import { sendNotification } from '../services/notification.service';
 
 export const createReview = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -89,6 +90,18 @@ export const createReview = async (req: AuthRequest, res: Response): Promise<voi
       select: 'name avatar email'
     });
 
+    // Send Notification to Vendor
+    const vendorUser = await Vendor.findById(booking.vendorId).select('userId');
+    if (vendorUser) {
+      await sendNotification(
+        vendorUser.userId,
+        'Đánh giá mới',
+        `Bạn nhận được 1 đánh giá ${parsedRating} sao từ đơn đặt chỗ ${booking._id.toString().slice(-6)}.`,
+        'review',
+        `/vendor/reviews`
+      );
+    }
+
     res.status(201).json({
       message: 'Đánh giá dịch vụ thành công!',
       review
@@ -142,6 +155,62 @@ export const getBookingReview = async (req: AuthRequest, res: Response): Promise
     res.status(200).json({ review: review || null });
   } catch (error) {
     console.error('Get booking review error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
+  }
+};
+
+export const replyToReview = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user || req.user.role !== 'vendor') {
+      res.status(403).json({ message: 'Chỉ nhà cung cấp mới có quyền phản hồi đánh giá.' });
+      return;
+    }
+
+    const { reviewId } = req.params;
+    const { reply } = req.body;
+
+    if (!reviewId || !Types.ObjectId.isValid(reviewId)) {
+      res.status(400).json({ message: 'Mã đánh giá không hợp lệ.' });
+      return;
+    }
+
+    if (!reply || typeof reply !== 'string' || reply.trim() === '') {
+      res.status(400).json({ message: 'Nội dung phản hồi không được để trống.' });
+      return;
+    }
+
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      res.status(404).json({ message: 'Không tìm thấy đánh giá.' });
+      return;
+    }
+
+    // Verify the current vendor is the owner of this review
+    const vendor = await Vendor.findOne({ userId: req.user.id });
+    if (!vendor || review.vendorId.toString() !== vendor._id.toString()) {
+      res.status(403).json({ message: 'Bạn không có quyền phản hồi đánh giá này.' });
+      return;
+    }
+
+    review.vendorReply = reply.trim();
+    review.repliedAt = new Date();
+    await review.save();
+
+    // Send Notification to Customer
+    await sendNotification(
+      review.customerId,
+      'Phản hồi từ Nhà cung cấp',
+      `Nhà cung cấp đã phản hồi đánh giá của bạn.`,
+      'review',
+      `/booths/${vendor._id}`
+    );
+
+    res.status(200).json({
+      message: 'Phản hồi đánh giá thành công!',
+      review
+    });
+  } catch (error) {
+    console.error('Reply review error:', error);
     res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
   }
 };

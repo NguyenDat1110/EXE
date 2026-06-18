@@ -77,9 +77,32 @@ export function CustomerProfile() {
   const { user, updateProfile } = useAuthStore();
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const avatarInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleChangePassword = async () => {
+    setPasswordError('');
+    setPasswordSuccess('');
+    if (!password || !newPassword) { setPasswordError('Vui lòng nhập đầy đủ thông tin.'); return; }
+    if (newPassword.length < 6) { setPasswordError('Mật khẩu mới phải có ít nhất 6 ký tự.'); return; }
+    if (newPassword !== confirmNewPassword) { setPasswordError('Xác nhận mật khẩu không khớp.'); return; }
+    setIsChangingPassword(true);
+    try {
+      const api = (await import('../../services/api')).default;
+      await api.patch('/auth/change-password', { currentPassword: password, newPassword });
+      setPasswordSuccess('Đổi mật khẩu thành công!');
+      setPassword(''); setNewPassword(''); setConfirmNewPassword('');
+    } catch (err: any) {
+      setPasswordError(err.response?.data?.message || 'Lỗi hệ thống.');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   if (!user) {
     return <div>Chưa đăng nhập</div>;
@@ -166,8 +189,23 @@ export function CustomerProfile() {
               />
               {newPassword && <PasswordStrength password={newPassword} />}
             </div>
-            <button className="w-full py-2.5 rounded-lg bg-gradient-to-r from-cyan to-cyan/70 text-navy font-semibold hover:shadow-lg hover:shadow-cyan/30 transition-all">
-              Cập nhật mật khẩu
+            <div>
+              <label className="text-silver/60 text-sm">Xác nhận mật khẩu mới</label>
+              <input
+                type="password"
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan mt-2"
+              />
+            </div>
+            {passwordError && <p className="text-red-400 text-sm">{passwordError}</p>}
+            {passwordSuccess && <p className="text-emerald-400 text-sm">{passwordSuccess}</p>}
+            <button
+              onClick={handleChangePassword}
+              disabled={isChangingPassword}
+              className="w-full py-2.5 rounded-lg bg-gradient-to-r from-cyan to-cyan/70 text-navy font-semibold hover:shadow-lg hover:shadow-cyan/30 transition-all disabled:opacity-50"
+            >
+              {isChangingPassword ? 'Đang xử lý...' : 'Cập nhật mật khẩu'}
             </button>
           </div>
         </div>

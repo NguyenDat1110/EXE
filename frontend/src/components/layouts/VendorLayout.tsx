@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+<<<<<<< HEAD
 import { LayoutDashboard, Briefcase, LogOut, Menu, X, User, FileCheck, Zap, Newspaper, Star } from 'lucide-react';
+=======
+import { LayoutDashboard, Briefcase, LogOut, Menu, X, User, FileCheck, Zap, Newspaper } from 'lucide-react';
+import { NotificationBell } from '../ui/NotificationBell';
+>>>>>>> 2c2104e232045224b0df3fdfd9e1d16ab542c5f5
 import { motion, AnimatePresence } from 'framer-motion';
 import { NotificationDropdown } from '../common/NotificationDropdown';
 
@@ -163,7 +168,11 @@ export function VendorLayout() {
           </div>
 
           <div className="flex items-center gap-4">
+<<<<<<< HEAD
             <NotificationDropdown />
+=======
+            <NotificationBell />
+>>>>>>> 2c2104e232045224b0df3fdfd9e1d16ab542c5f5
 
             {user && (
               <div className="relative">

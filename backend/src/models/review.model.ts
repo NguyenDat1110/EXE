@@ -7,7 +7,7 @@ export interface IReview extends Document {
   rating: number;
   comment?: string;
   vendorReply?: string;
-  repliedAt?: Date;
+  vendorRepliedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,8 +19,8 @@ const reviewSchema = new Schema<IReview>(
     vendorId: { type: Schema.Types.ObjectId, ref: 'Vendor', required: true },
     rating: { type: Number, required: true, min: 1, max: 5 },
     comment: { type: String, default: '' },
-    vendorReply: { type: String, default: null },
-    repliedAt: { type: Date, default: null }
+    vendorReply: { type: String },
+    vendorRepliedAt: { type: Date }
   },
   { timestamps: true }
 );

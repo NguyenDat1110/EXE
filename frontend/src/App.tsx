@@ -16,6 +16,8 @@ import { RoleRoute } from './components/guards/RoleRoute';
 // Pages
 import LandingPage from './pages/LandingPage';
 import { LoginPage } from './pages/auth/LoginPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import Register from './pages/Register';
 import Explore from './pages/customer/Explore';
 import BoothList from './pages/customer/BoothList';
@@ -88,6 +90,8 @@ export default function App() {
 
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
 
 

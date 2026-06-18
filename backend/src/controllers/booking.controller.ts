@@ -6,7 +6,10 @@ import { Types } from 'mongoose';
 import { Booking } from '../models/booking.model';
 import { Package } from '../models/package.model';
 import { Vendor } from '../models/vendor.model';
+import { User } from '../models/user.model';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { createNotification } from './notification.controller';
+import { sendBookingAcceptedEmail, sendBookingDeclinedEmail, sendDepositConfirmedEmail, sendNewBookingRequestEmail } from '../services/email.service';
 
 const toObjectId = (value: unknown): Types.ObjectId | null => {
   if (!value) return null;
@@ -298,6 +301,21 @@ export const createBooking = async (req: AuthRequest, res: Response): Promise<vo
     });
 
     await booking.populate(['packageId', 'vendorId', 'boothId', 'customerId']);
+
+    // Notify vendor of new booking request
+    try {
+      const vendorRecord = await Vendor.findById(booking.vendorId).select('email companyName userId').lean() as any;
+      const customerUser = await User.findById(booking.customerId).select('email name').lean() as any;
+      if (vendorRecord?.userId) {
+        await createNotification(String(vendorRecord.userId), 'booking_request', 'Yêu cầu đặt lịch mới', `${customerUser?.name || 'Khách hàng'} đã gửi yêu cầu đặt lịch.`, String(booking._id), 'Booking');
+      }
+      if (vendorRecord?.email && customerUser) {
+        sendNewBookingRequestEmail(vendorRecord.email, vendorRecord.companyName, customerUser.name, booking.eventDate?.toLocaleDateString('vi-VN') || '').catch(console.error);
+      }
+    } catch (notifyErr) {
+      console.error('Notify booking error:', notifyErr);
+    }
+
     res.status(201).json({ booking: formatBooking(booking) });
   } catch (error) {
     console.error('Create booking error:', error);
@@ -473,6 +491,18 @@ export const acceptBooking = async (req: AuthRequest, res: Response): Promise<vo
     await booking.save();
     await booking.populate(['packageId', 'vendorId', 'boothId', 'customerId']);
 
+    // Notify customer
+    try {
+      const customerUser = await User.findById(booking.customerId).select('email name').lean() as any;
+      const vendorRecord = await Vendor.findById(booking.vendorId).select('email companyName').lean() as any;
+      await createNotification(String(booking.customerId), 'booking_accepted', 'Yêu cầu đặt lịch được chấp nhận', `${vendorRecord?.companyName || 'Vendor'} đã chấp nhận yêu cầu của bạn.`, String(booking._id), 'Booking');
+      if (customerUser?.email && vendorRecord) {
+        sendBookingAcceptedEmail(customerUser.email, customerUser.name, vendorRecord.companyName, booking.eventDate?.toLocaleDateString('vi-VN') || '', String(booking._id)).catch(console.error);
+      }
+    } catch (notifyErr) {
+      console.error('Notify accept booking error:', notifyErr);
+    }
+
     res.status(200).json({ booking: formatBooking(booking) });
   } catch (error) {
     console.error('Accept booking error:', error);
@@ -518,6 +548,18 @@ export const declineBooking = async (req: AuthRequest, res: Response): Promise<v
     booking.status = 'cancelled';
     await booking.save();
     await booking.populate(['packageId', 'vendorId', 'boothId', 'customerId']);
+
+    // Notify customer of decline
+    try {
+      const customerUser = await User.findById(booking.customerId).select('email name').lean() as any;
+      const vendorRecord = await Vendor.findById(booking.vendorId).select('email companyName').lean() as any;
+      await createNotification(String(booking.customerId), 'booking_declined', 'Yêu cầu đặt lịch bị từ chối', `${vendorRecord?.companyName || 'Vendor'} đã không thể nhận yêu cầu của bạn.`, String(booking._id), 'Booking');
+      if (customerUser?.email && vendorRecord) {
+        sendBookingDeclinedEmail(customerUser.email, customerUser.name, vendorRecord.companyName, booking.eventDate?.toLocaleDateString('vi-VN') || '').catch(console.error);
+      }
+    } catch (notifyErr) {
+      console.error('Notify decline booking error:', notifyErr);
+    }
 
     res.status(200).json({ booking: formatBooking(booking) });
   } catch (error) {
@@ -674,6 +716,18 @@ export const payDeposit = async (req: AuthRequest, res: Response): Promise<void>
       booking.status = 'confirmed';
       await booking.save();
       await booking.populate(['packageId', 'vendorId', 'boothId', 'customerId']);
+
+      // Notify customer deposit confirmed
+      try {
+        const customerUser = await User.findById(booking.customerId).select('email name').lean() as any;
+        const vendorRecord = await Vendor.findById(booking.vendorId).select('email companyName').lean() as any;
+        await createNotification(String(booking.customerId), 'deposit_confirmed', 'Cọc đã được xác nhận', 'Vendor đã xác nhận thanh toán cọc của bạn. Booking đã được xác nhận!', String(booking._id), 'Booking');
+        if (customerUser?.email && vendorRecord) {
+          sendDepositConfirmedEmail(customerUser.email, customerUser.name, vendorRecord.companyName, booking.eventDate?.toLocaleDateString('vi-VN') || '').catch(console.error);
+        }
+      } catch (notifyErr) {
+        console.error('Notify deposit confirm error:', notifyErr);
+      }
 
       res.status(200).json({ booking: formatBooking(booking) });
     } catch (error) {

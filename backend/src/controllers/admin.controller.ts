@@ -1,9 +1,13 @@
 import { Request, Response } from 'express';
+import { Types } from 'mongoose';
 import { User } from '../models/user.model';
 import { Vendor } from '../models/vendor.model';
 import { Booking } from '../models/booking.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { sendVendorApprovalEmail, sendVendorRejectionEmail } from '../services/email.service';
+import { ActivityLog } from '../models/activityLog.model';
+import { Report } from '../models/report.model';
+import { SubscriptionPlan } from '../models/subscriptionPlan.model';
 
 // UC-37: Admin Dashboard - Tổng quan hệ thống
 export const getDashboardStats = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -38,7 +42,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
       {
         $match: {
           createdAt: { $gte: firstDayOfMonth, $lte: lastDayOfMonth },
-          paymentStatus: 'paid'
+          paymentStatus: { $in: ['deposit_paid', 'final_paid'] }
         }
       },
       {
@@ -390,5 +394,263 @@ export const rejectVendor = async (req: AuthRequest, res: Response): Promise<voi
   } catch (error) {
     console.error('Reject vendor error:', error);
     res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
+  }
+};
+
+// UC-42: Admin xem log hoạt động hệ thống
+export const getActivityLogs = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền.' }); return; }
+
+    const { page = 1, limit = 20, action, resource } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    const filter: any = {};
+    if (action) filter.action = { $regex: action, $options: 'i' };
+    if (resource) filter.resource = resource;
+
+    const [logs, total] = await Promise.all([
+      ActivityLog.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .populate('userId', 'name email role')
+        .lean(),
+      ActivityLog.countDocuments(filter)
+    ]);
+
+    res.status(200).json({ logs, pagination: { total, page: Number(page), limit: Number(limit), pages: Math.ceil(total / Number(limit)) } });
+  } catch (error) {
+    console.error('Get activity logs error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+// UC-41: Admin xem danh sách gói subscription
+export const adminGetSubscriptions = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền.' }); return; }
+
+    const { plan, status, page = 1, limit = 10 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    const filter: any = {};
+    if (plan && plan !== 'all') filter.subscriptionPlan = plan;
+    if (status && status !== 'all') filter.subscriptionStatus = status;
+
+    const [vendors, total] = await Promise.all([
+      Vendor.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .populate('userId', 'name email')
+        .select('companyName subscriptionPlan subscriptionStatus subscriptionExpiry userId')
+        .lean(),
+      Vendor.countDocuments(filter)
+    ]);
+
+    res.status(200).json({ vendors, pagination: { total, page: Number(page), limit: Number(limit), pages: Math.ceil(total / Number(limit)) } });
+  } catch (error) {
+    console.error('Admin get subscriptions error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+// UC-43: Admin gia hạn gói VIP thủ công
+export const adminExtendSubscription = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền.' }); return; }
+
+    const { vendorId } = req.params;
+    const { plan = 'vip', days = 365 } = req.body;
+
+    if (!Types.ObjectId.isValid(vendorId)) { res.status(400).json({ message: 'Vendor ID không hợp lệ.' }); return; }
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) { res.status(404).json({ message: 'Không tìm thấy vendor.' }); return; }
+
+    const now = new Date();
+    const base = vendor.subscriptionExpiry && vendor.subscriptionExpiry > now ? vendor.subscriptionExpiry : now;
+    const newExpiry = new Date(base);
+    newExpiry.setDate(newExpiry.getDate() + Number(days));
+
+    vendor.subscriptionPlan = plan as 'basic' | 'vip';
+    vendor.subscriptionExpiry = newExpiry;
+    vendor.subscriptionStatus = 'active';
+    await vendor.save();
+
+    res.status(200).json({ message: `Gia hạn gói ${plan} thành công.`, vendor: { subscriptionPlan: vendor.subscriptionPlan, subscriptionExpiry: vendor.subscriptionExpiry, subscriptionStatus: vendor.subscriptionStatus } });
+  } catch (error) {
+    console.error('Admin extend subscription error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+// UC-43: Admin thu hồi gói VIP
+export const adminRevokeSubscription = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền.' }); return; }
+
+    const { vendorId } = req.params;
+    if (!Types.ObjectId.isValid(vendorId)) { res.status(400).json({ message: 'Vendor ID không hợp lệ.' }); return; }
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) { res.status(404).json({ message: 'Không tìm thấy vendor.' }); return; }
+
+    vendor.subscriptionStatus = 'inactive';
+    vendor.subscriptionExpiry = undefined;
+    await vendor.save();
+
+    res.status(200).json({ message: 'Thu hồi gói subscription thành công.' });
+  } catch (error) {
+    console.error('Admin revoke subscription error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+// ==========================================
+// UC-39: Admin quản lý nội dung Package
+// ==========================================
+export const getAllPackages = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') {
+      res.status(403).json({ message: 'Chỉ admin mới có quyền truy cập' });
+      return;
+    }
+
+    const vendors = await Vendor.find().select('companyName packages');
+    const allPackages = vendors.flatMap(vendor => 
+      vendor.packages.map(pkg => ({
+        ...pkg.toObject(),
+        vendorId: vendor._id,
+        vendorName: vendor.companyName
+      }))
+    );
+
+    allPackages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    res.status(200).json({ message: 'Lấy danh sách package thành công', data: allPackages });
+  } catch (error) {
+    console.error('Get all packages error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+export const togglePackageStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền truy cập' }); return; }
+
+    const { vendorId, packageId } = req.params;
+    const { isActive } = req.body;
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) { res.status(404).json({ message: 'Vendor không tồn tại' }); return; }
+
+    const pkg = vendor.packages.id(packageId);
+    if (!pkg) { res.status(404).json({ message: 'Package không tồn tại' }); return; }
+
+    pkg.isActive = isActive;
+    await vendor.save();
+
+    await ActivityLog.create({
+      userId: req.user.id,
+      action: 'toggle_package_status',
+      resource: 'Package',
+      details: { packageId, isActive, vendorId }
+    });
+
+    res.status(200).json({ message: 'Cập nhật trạng thái package thành công', data: pkg });
+  } catch (error) {
+    console.error('Toggle package status error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+// ==========================================
+// UC-40: Admin xem & xử lý khiếu nại
+// ==========================================
+export const getReports = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền truy cập' }); return; }
+
+    const reports = await Report.find().populate('reporterId', 'name email').sort({ createdAt: -1 });
+    res.status(200).json({ message: 'Lấy danh sách khiếu nại thành công', data: reports });
+  } catch (error) {
+    console.error('Get reports error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+export const updateReportStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền truy cập' }); return; }
+
+    const { reportId } = req.params;
+    const { status, adminNotes } = req.body;
+
+    const report = await Report.findByIdAndUpdate(reportId, { status, adminNotes }, { new: true });
+    if (!report) { res.status(404).json({ message: 'Khiếu nại không tồn tại' }); return; }
+
+    await ActivityLog.create({
+      userId: req.user.id,
+      action: 'update_report_status',
+      resource: 'Report',
+      details: { reportId, status, adminNotes }
+    });
+
+    res.status(200).json({ message: 'Cập nhật khiếu nại thành công', data: report });
+  } catch (error) {
+    console.error('Update report error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+// ==========================================
+// UC-41: Admin quản lý gói Subscription Plan
+// ==========================================
+export const getSubscriptionPlans = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const plans = await SubscriptionPlan.find().sort({ price: 1 });
+    res.status(200).json({ message: 'Lấy danh sách gói thành công', data: plans });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+export const createSubscriptionPlan = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền truy cập' }); return; }
+
+    const plan = await SubscriptionPlan.create(req.body);
+    await ActivityLog.create({
+      userId: req.user.id,
+      action: 'create_subscription_plan',
+      resource: 'SubscriptionPlan',
+      details: req.body
+    });
+
+    res.status(201).json({ message: 'Tạo gói thành công', data: plan });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+export const updateSubscriptionPlan = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền truy cập' }); return; }
+
+    const { planId } = req.params;
+    const plan = await SubscriptionPlan.findByIdAndUpdate(planId, req.body, { new: true });
+    
+    if (!plan) { res.status(404).json({ message: 'Gói không tồn tại' }); return; }
+
+    await ActivityLog.create({
+      userId: req.user.id,
+      action: 'update_subscription_plan',
+      resource: 'SubscriptionPlan',
+      details: req.body
+    });
+
+    res.status(200).json({ message: 'Cập nhật gói thành công', data: plan });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
   }
 };

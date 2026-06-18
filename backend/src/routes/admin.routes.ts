@@ -7,19 +7,20 @@ import {
   getUserDetail,
   getPendingVendors,
   approveVendor,
-  rejectVendor
-} from '../controllers/admin.controller';
-import {
+  rejectVendor,
+  getActivityLogs,
+  adminGetSubscriptions,
+  adminExtendSubscription,
+  adminRevokeSubscription,
   getAllPackages,
   togglePackageStatus,
   getReports,
   updateReportStatus,
   getSubscriptionPlans,
   createSubscriptionPlan,
-  updateSubscriptionPlan,
-  updateVendorSubscription,
-  getActivityLogs
-} from '../controllers/admin.extended.controller';
+  updateSubscriptionPlan
+} from '../controllers/admin.controller';
+
 import { authenticate } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -41,6 +42,16 @@ router.get('/vendors', getPendingVendors as any);
 router.patch('/vendors/:vendorId/approve', approveVendor as any);
 router.patch('/vendors/:vendorId/reject', rejectVendor as any);
 
+// UC-42: Activity logs
+router.get('/logs', getActivityLogs as any);
+
+// UC-41: Subscription management
+router.get('/subscriptions', adminGetSubscriptions as any);
+
+// UC-43: Extend/revoke subscription
+router.post('/vendors/:vendorId/extend-subscription', adminExtendSubscription as any);
+router.post('/vendors/:vendorId/revoke-subscription', adminRevokeSubscription as any);
+
 // UC-39: Package management
 router.get('/packages', getAllPackages as any);
 router.patch('/packages/:vendorId/:packageId/status', togglePackageStatus as any);
@@ -54,10 +65,5 @@ router.get('/subscriptions/plans', getSubscriptionPlans as any);
 router.post('/subscriptions/plans', createSubscriptionPlan as any);
 router.put('/subscriptions/plans/:planId', updateSubscriptionPlan as any);
 
-// UC-43: Vendor subscription manual management
-router.post('/vendors/:vendorId/subscription', updateVendorSubscription as any);
-
-// UC-42: System activity logs
-router.get('/logs', getActivityLogs as any);
-
 export default router;
+

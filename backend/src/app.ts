@@ -28,24 +28,14 @@ try {
 
 const app: Express = express();
 
-// UC-47: Rate Limiting
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 300,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Quá nhiều yêu cầu. Vui lòng thử lại sau.' }
-});
-
+// UC-47: Rate Limiting — chỉ áp dụng cho auth endpoints nhạy cảm
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: 'Quá nhiều lần thử. Vui lòng thử lại sau 15 phút.' }
+  message: { message: 'Quá nhiều lần thử đăng nhập. Vui lòng thử lại sau 15 phút.' }
 });
-
-app.use(globalLimiter);
 
 // Standard Middlewares
 app.use(cors());

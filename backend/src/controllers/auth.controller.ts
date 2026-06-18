@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/user.model';
 import { Vendor } from '../models/vendor.model';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { sendPasswordResetEmail } from '../services/email.service';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -198,6 +200,116 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     });
   } catch (error) {
     console.error('Update profile error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
+  }
+};
+
+// UC-05: Quên mật khẩu
+export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      res.status(400).json({ message: 'Vui lòng cung cấp email.' });
+      return;
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    // Always return 200 to prevent email enumeration
+    if (!user) {
+      res.status(200).json({ message: 'Nếu email tồn tại, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu.' });
+      return;
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    (user as any).resetPasswordToken = resetTokenHash;
+    (user as any).resetPasswordExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await user.save();
+
+    await sendPasswordResetEmail(user.email, resetToken, user.name);
+
+    res.status(200).json({ message: 'Nếu email tồn tại, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu.' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
+  }
+};
+
+// UC-05: Reset mật khẩu
+export const resetPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      res.status(400).json({ message: 'Token và mật khẩu mới là bắt buộc.' });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      res.status(400).json({ message: 'Mật khẩu phải có ít nhất 6 ký tự.' });
+      return;
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({
+      resetPasswordToken: tokenHash,
+      resetPasswordExpiry: { $gt: new Date() }
+    } as any);
+
+    if (!user) {
+      res.status(400).json({ message: 'Token không hợp lệ hoặc đã hết hạn.' });
+      return;
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    (user as any).resetPasswordToken = undefined;
+    (user as any).resetPasswordExpiry = undefined;
+    await user.save();
+
+    res.status(200).json({ message: 'Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
+  }
+};
+
+// UC-07: Đổi mật khẩu
+export const changePassword = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Không được phép truy cập.' });
+      return;
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ message: 'Vui lòng cung cấp mật khẩu hiện tại và mật khẩu mới.' });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      res.status(400).json({ message: 'Mật khẩu mới phải có ít nhất 6 ký tự.' });
+      return;
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      res.status(404).json({ message: 'Không tìm thấy tài khoản.' });
+      return;
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isMatch) {
+      res.status(400).json({ message: 'Mật khẩu hiện tại không chính xác.' });
+      return;
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    res.status(200).json({ message: 'Đổi mật khẩu thành công!' });
+  } catch (error) {
+    console.error('Change password error:', error);
     res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
   }
 };

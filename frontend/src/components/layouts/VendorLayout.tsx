@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { LayoutDashboard, Briefcase, LogOut, Bell, Menu, X, User, FileCheck, Zap, Newspaper } from 'lucide-react';
+import { LayoutDashboard, Briefcase, LogOut, Menu, X, User, FileCheck, Zap, Newspaper } from 'lucide-react';
+import { NotificationBell } from '../ui/NotificationBell';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function VendorLayout() {
@@ -161,10 +162,7 @@ export function VendorLayout() {
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="p-2 text-silver hover:text-cyan hover:bg-white/5 rounded-full transition-colors relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-cyan rounded-full" />
-            </button>
+            <NotificationBell />
 
             {user && (
               <div className="relative">

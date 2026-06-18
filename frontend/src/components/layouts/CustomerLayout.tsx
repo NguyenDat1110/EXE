@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { Search, CalendarDays, LogOut, Bell, User, Rss } from 'lucide-react';
+import { Search, CalendarDays, LogOut, User, Rss } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { NotificationBell } from '../ui/NotificationBell';
 
 export function CustomerLayout() {
   const { user, logout } = useAuthStore();
@@ -67,10 +68,7 @@ export function CustomerLayout() {
             <span className="absolute top-1 right-1 w-2 h-2 bg-cyan rounded-full" />
           </Link>
 
-          <button className="p-2 text-silver hover:text-cyan hover:bg-white/5 rounded-full transition-colors relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-          </button>
+          <NotificationBell />
 
           {/* User Profile Dropdown */}
           {user && (

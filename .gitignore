@@ -38,3 +38,6 @@ frontend/.env
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Claude Code internal files
+.claude/

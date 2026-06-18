@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { Vendor } from '../models/vendor.model';
+import { Booking } from '../models/booking.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 const normalizeBusinessLicense = (value: unknown): string[] => {
@@ -235,5 +236,110 @@ export const getVendorInfo = async (req: AuthRequest, res: Response): Promise<vo
   } catch (error) {
     console.error('Get vendor info error:', error);
     res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
+  }
+};
+
+// UC-15: Vendor block ngày bận thủ công
+export const blockDate = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) { res.status(401).json({ message: 'Không được phép.' }); return; }
+
+    const { date } = req.body;
+    if (!date) { res.status(400).json({ message: 'Vui lòng cung cấp ngày cần block.' }); return; }
+
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) { res.status(400).json({ message: 'Ngày không hợp lệ.' }); return; }
+
+    parsedDate.setHours(0, 0, 0, 0);
+
+    const vendor = await Vendor.findOne({ userId: req.user.id });
+    if (!vendor) { res.status(404).json({ message: 'Không tìm thấy hồ sơ vendor.' }); return; }
+
+    const blockedDates = (vendor.blockedDates as Date[]) || [];
+    const alreadyBlocked = blockedDates.some(d => new Date(d).toDateString() === parsedDate.toDateString());
+    if (alreadyBlocked) { res.status(400).json({ message: 'Ngày này đã được block.' }); return; }
+
+    blockedDates.push(parsedDate);
+    vendor.blockedDates = blockedDates;
+    await vendor.save();
+
+    res.status(200).json({ message: 'Block ngày thành công.', blockedDates: vendor.blockedDates });
+  } catch (error) {
+    console.error('Block date error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+// UC-16: Vendor bỏ block ngày
+export const unblockDate = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) { res.status(401).json({ message: 'Không được phép.' }); return; }
+
+    const { date } = req.body;
+    if (!date) { res.status(400).json({ message: 'Vui lòng cung cấp ngày cần bỏ block.' }); return; }
+
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) { res.status(400).json({ message: 'Ngày không hợp lệ.' }); return; }
+
+    parsedDate.setHours(0, 0, 0, 0);
+
+    const vendor = await Vendor.findOne({ userId: req.user.id });
+    if (!vendor) { res.status(404).json({ message: 'Không tìm thấy hồ sơ vendor.' }); return; }
+
+    const filtered = (vendor.blockedDates || []).filter(d => new Date(d).toDateString() !== parsedDate.toDateString());
+    vendor.blockedDates = filtered;
+    await vendor.save();
+
+    res.status(200).json({ message: 'Bỏ block ngày thành công.', blockedDates: vendor.blockedDates });
+  } catch (error) {
+    console.error('Unblock date error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+// UC-17: Vendor xem thống kê
+export const getVendorStats = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) { res.status(401).json({ message: 'Không được phép.' }); return; }
+
+    const vendor = await Vendor.findOne({ userId: req.user.id });
+    if (!vendor) { res.status(404).json({ message: 'Không tìm thấy hồ sơ vendor.' }); return; }
+
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    const [totalBookings, monthlyBookings, lastMonthBookings, pendingBookings, confirmedBookings, completedBookings] = await Promise.all([
+      Booking.countDocuments({ vendorId: vendor._id }),
+      Booking.countDocuments({ vendorId: vendor._id, createdAt: { $gte: firstDayOfMonth } }),
+      Booking.countDocuments({ vendorId: vendor._id, createdAt: { $gte: firstDayLastMonth, $lte: lastDayLastMonth } }),
+      Booking.countDocuments({ vendorId: vendor._id, status: 'pending' }),
+      Booking.countDocuments({ vendorId: vendor._id, status: 'confirmed' }),
+      Booking.countDocuments({ vendorId: vendor._id, status: 'completed' })
+    ]);
+
+    const revenueAgg = await Booking.aggregate([
+      { $match: { vendorId: vendor._id, paymentStatus: { $in: ['deposit_paid', 'final_paid'] } } },
+      { $group: { _id: null, total: { $sum: '$depositAmount' } } }
+    ]);
+
+    const monthlyRevenueAgg = await Booking.aggregate([
+      { $match: { vendorId: vendor._id, paymentStatus: { $in: ['deposit_paid', 'final_paid'] }, createdAt: { $gte: firstDayOfMonth } } },
+      { $group: { _id: null, total: { $sum: '$depositAmount' } } }
+    ]);
+
+    res.status(200).json({
+      stats: {
+        totalBookings, monthlyBookings, lastMonthBookings, pendingBookings, confirmedBookings, completedBookings,
+        totalRevenue: revenueAgg[0]?.total || 0,
+        monthlyRevenue: monthlyRevenueAgg[0]?.total || 0,
+        averageRating: vendor.averageRating,
+        reviewCount: vendor.reviewCount
+      }
+    });
+  } catch (error) {
+    console.error('Get vendor stats error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
   }
 };

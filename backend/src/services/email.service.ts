@@ -234,3 +234,49 @@ export const sendPasswordResetEmail = async (
     html
   });
 };
+
+// UC-34: Email khi booking được chấp nhận
+export const sendBookingAcceptedEmail = async (
+  customerEmail: string,
+  customerName: string,
+  vendorName: string,
+  eventDate: string,
+  bookingId: string
+): Promise<boolean> => {
+  const html = `<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}.container{max-width:600px;margin:0 auto;padding:20px}.header{background:#10b981;color:white;padding:30px;text-align:center;border-radius:5px 5px 0 0}.content{background:#f9f9f9;padding:30px;border-radius:0 0 5px 5px}.button{display:inline-block;background:#10b981;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;margin-top:20px}.footer{text-align:center;padding-top:20px;border-top:1px solid #ddd;font-size:12px;color:#666}</style></head><body><div class="container"><div class="header"><h1>Yêu cầu đặt lịch được chấp nhận!</h1></div><div class="content"><p>Xin chào <strong>${customerName}</strong>,</p><p>Tin vui! Vendor <strong>${vendorName}</strong> đã <strong>chấp nhận</strong> yêu cầu đặt lịch của bạn.</p><p>Ngày sự kiện: <strong>${eventDate}</strong></p><p>Vui lòng hoàn tất thanh toán cọc để xác nhận đặt chỗ.</p><a href="${process.env.FRONTEND_URL}/my-bookings" class="button">Xem chi tiết booking</a></div><div class="footer"><p>&copy; 2024 EventFlow. All rights reserved.</p></div></div></body></html>`;
+  return sendEmail({ to: customerEmail, subject: 'Yêu cầu đặt lịch đã được chấp nhận - EventFlow', html });
+};
+
+// UC-34: Email khi booking bị từ chối
+export const sendBookingDeclinedEmail = async (
+  customerEmail: string,
+  customerName: string,
+  vendorName: string,
+  eventDate: string,
+  reason?: string
+): Promise<boolean> => {
+  const html = `<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}.container{max-width:600px;margin:0 auto;padding:20px}.header{background:#ef4444;color:white;padding:30px;text-align:center;border-radius:5px 5px 0 0}.content{background:#f9f9f9;padding:30px;border-radius:0 0 5px 5px}.footer{text-align:center;padding-top:20px;border-top:1px solid #ddd;font-size:12px;color:#666}</style></head><body><div class="container"><div class="header"><h1>Yêu cầu đặt lịch bị từ chối</h1></div><div class="content"><p>Xin chào <strong>${customerName}</strong>,</p><p>Rất tiếc, Vendor <strong>${vendorName}</strong> đã không thể nhận yêu cầu đặt lịch ngày <strong>${eventDate}</strong> của bạn.</p>${reason ? `<p>Lý do: ${reason}</p>` : ''}<p>Bạn có thể tìm kiếm các vendor khác trên EventFlow.</p><a href="${process.env.FRONTEND_URL}/explore" style="display:inline-block;background:#667eea;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;margin-top:20px">Khám phá Vendor khác</a></div><div class="footer"><p>&copy; 2024 EventFlow. All rights reserved.</p></div></div></body></html>`;
+  return sendEmail({ to: customerEmail, subject: 'Thông báo về yêu cầu đặt lịch - EventFlow', html });
+};
+
+// UC-34: Email khi cọc được xác nhận
+export const sendDepositConfirmedEmail = async (
+  customerEmail: string,
+  customerName: string,
+  vendorName: string,
+  eventDate: string
+): Promise<boolean> => {
+  const html = `<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}.container{max-width:600px;margin:0 auto;padding:20px}.header{background:#10b981;color:white;padding:30px;text-align:center;border-radius:5px 5px 0 0}.content{background:#f9f9f9;padding:30px;border-radius:0 0 5px 5px}.footer{text-align:center;padding-top:20px;border-top:1px solid #ddd;font-size:12px;color:#666}</style></head><body><div class="container"><div class="header"><h1>Xác nhận thanh toán cọc thành công!</h1></div><div class="content"><p>Xin chào <strong>${customerName}</strong>,</p><p>Booking của bạn với <strong>${vendorName}</strong> đã được <strong>xác nhận</strong>!</p><p>Ngày sự kiện: <strong>${eventDate}</strong></p><p>Lịch đã được giữ. Thông tin liên hệ của vendor đã được mở khóa trong trang booking của bạn.</p><a href="${process.env.FRONTEND_URL}/my-bookings" style="display:inline-block;background:#10b981;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;margin-top:20px">Xem chi tiết</a></div><div class="footer"><p>&copy; 2024 EventFlow. All rights reserved.</p></div></div></body></html>`;
+  return sendEmail({ to: customerEmail, subject: 'Xác nhận cọc thành công - EventFlow', html });
+};
+
+// UC-34: Email thông báo vendor có booking mới
+export const sendNewBookingRequestEmail = async (
+  vendorEmail: string,
+  vendorName: string,
+  customerName: string,
+  eventDate: string
+): Promise<boolean> => {
+  const html = `<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}.container{max-width:600px;margin:0 auto;padding:20px}.header{background:#667eea;color:white;padding:30px;text-align:center;border-radius:5px 5px 0 0}.content{background:#f9f9f9;padding:30px;border-radius:0 0 5px 5px}.footer{text-align:center;padding-top:20px;border-top:1px solid #ddd;font-size:12px;color:#666}</style></head><body><div class="container"><div class="header"><h1>Bạn có yêu cầu đặt lịch mới!</h1></div><div class="content"><p>Xin chào <strong>${vendorName}</strong>,</p><p>Khách hàng <strong>${customerName}</strong> đã gửi yêu cầu đặt lịch cho ngày <strong>${eventDate}</strong>.</p><p>Vui lòng xem xét và phản hồi yêu cầu trong vòng 24 giờ.</p><a href="${process.env.FRONTEND_URL}/vendor/dashboard" style="display:inline-block;background:#667eea;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;margin-top:20px">Xem yêu cầu</a></div><div class="footer"><p>&copy; 2024 EventFlow. All rights reserved.</p></div></div></body></html>`;
+  return sendEmail({ to: vendorEmail, subject: 'Yêu cầu đặt lịch mới - EventFlow', html });
+};

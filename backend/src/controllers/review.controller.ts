@@ -145,3 +145,46 @@ export const getBookingReview = async (req: AuthRequest, res: Response): Promise
     res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
   }
 };
+
+// UC-32: Vendor phản hồi đánh giá
+export const replyToReview = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) { res.status(401).json({ message: 'Không được phép.' }); return; }
+
+    const { id } = req.params;
+    const { reply } = req.body;
+
+    if (!reply || typeof reply !== 'string' || !reply.trim()) {
+      res.status(400).json({ message: 'Nội dung phản hồi không được để trống.' });
+      return;
+    }
+
+    if (!Types.ObjectId.isValid(id)) {
+      res.status(400).json({ message: 'ID đánh giá không hợp lệ.' });
+      return;
+    }
+
+    const review = await Review.findById(id);
+    if (!review) { res.status(404).json({ message: 'Không tìm thấy đánh giá.' }); return; }
+
+    const vendor = await Vendor.findOne({ userId: req.user.id });
+    if (!vendor || String(vendor._id) !== String(review.vendorId)) {
+      res.status(403).json({ message: 'Bạn không có quyền phản hồi đánh giá này.' });
+      return;
+    }
+
+    if ((review as any).vendorReply) {
+      res.status(400).json({ message: 'Bạn đã phản hồi đánh giá này rồi.' });
+      return;
+    }
+
+    (review as any).vendorReply = reply.trim();
+    (review as any).vendorRepliedAt = new Date();
+    await review.save();
+
+    res.status(200).json({ message: 'Phản hồi đánh giá thành công.', review });
+  } catch (error) {
+    console.error('Reply to review error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};

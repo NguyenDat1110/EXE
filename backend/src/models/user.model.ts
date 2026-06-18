@@ -11,6 +11,8 @@ export interface IUser extends Document {
   role: 'customer' | 'vendor' | 'admin';
   isEmailVerified: boolean;
   isActive: boolean;
+  resetPasswordToken?: string;
+  resetPasswordExpiry?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,7 +28,9 @@ const userSchema = new Schema<IUser>(
     address: { type: String, default: '' },
     role: { type: String, enum: ['customer', 'vendor', 'admin'], default: 'customer' },
     isEmailVerified: { type: Boolean, default: false },
-    isActive: { type: Boolean, default: true }
+    isActive: { type: Boolean, default: true },
+    resetPasswordToken: { type: String },
+    resetPasswordExpiry: { type: Date }
   },
   { timestamps: true }
 );

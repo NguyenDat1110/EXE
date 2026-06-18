@@ -37,6 +37,7 @@ export interface IVendor extends Document {
   accountHolderName?: string;
   accountNumber?: string;
   bankName?: string;
+  blockedDates: Date[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -80,7 +81,8 @@ const vendorSchema = new Schema<IVendor>(
     ,
     accountHolderName: { type: String, default: '' },
     accountNumber: { type: String, default: '' },
-    bankName: { type: String, default: '' }
+    bankName: { type: String, default: '' },
+    blockedDates: { type: [Date], default: [] }
   },
   { timestamps: true }
 );

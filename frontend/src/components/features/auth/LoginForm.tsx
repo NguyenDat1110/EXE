@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Loader } from 'lucide-react';
 import { clsx } from 'clsx';
 import { loginSchema, LoginFormData } from '../../../lib/schemas';
@@ -133,12 +134,12 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           />
           <span className="text-silver/60 text-sm">Ghi nhớ đăng nhập</span>
         </label>
-        <button
-          type="button"
+        <Link
+          to="/forgot-password"
           className="text-cyan hover:text-cyan/80 text-sm font-medium transition-colors"
         >
           Quên mật khẩu?
-        </button>
+        </Link>
       </div>
 
       {/* Submit Button */}

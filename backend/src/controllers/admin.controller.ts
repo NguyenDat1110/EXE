@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
+import { Types } from 'mongoose';
 import { User } from '../models/user.model';
 import { Vendor } from '../models/vendor.model';
 import { Booking } from '../models/booking.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { sendVendorApprovalEmail, sendVendorRejectionEmail } from '../services/email.service';
+import { ActivityLog } from '../models/activityLog.model';
 
 // UC-37: Admin Dashboard - Tổng quan hệ thống
 export const getDashboardStats = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -38,7 +40,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
       {
         $match: {
           createdAt: { $gte: firstDayOfMonth, $lte: lastDayOfMonth },
-          paymentStatus: 'paid'
+          paymentStatus: { $in: ['deposit_paid', 'final_paid'] }
         }
       },
       {
@@ -390,5 +392,114 @@ export const rejectVendor = async (req: AuthRequest, res: Response): Promise<voi
   } catch (error) {
     console.error('Reject vendor error:', error);
     res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
+  }
+};
+
+// UC-42: Admin xem log hoạt động hệ thống
+export const getActivityLogs = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền.' }); return; }
+
+    const { page = 1, limit = 20, action, resource } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    const filter: any = {};
+    if (action) filter.action = { $regex: action, $options: 'i' };
+    if (resource) filter.resource = resource;
+
+    const [logs, total] = await Promise.all([
+      ActivityLog.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .populate('userId', 'name email role')
+        .lean(),
+      ActivityLog.countDocuments(filter)
+    ]);
+
+    res.status(200).json({ logs, pagination: { total, page: Number(page), limit: Number(limit), pages: Math.ceil(total / Number(limit)) } });
+  } catch (error) {
+    console.error('Get activity logs error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+// UC-41: Admin xem danh sách gói subscription
+export const adminGetSubscriptions = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền.' }); return; }
+
+    const { plan, status, page = 1, limit = 10 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    const filter: any = {};
+    if (plan && plan !== 'all') filter.subscriptionPlan = plan;
+    if (status && status !== 'all') filter.subscriptionStatus = status;
+
+    const [vendors, total] = await Promise.all([
+      Vendor.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .populate('userId', 'name email')
+        .select('companyName subscriptionPlan subscriptionStatus subscriptionExpiry userId')
+        .lean(),
+      Vendor.countDocuments(filter)
+    ]);
+
+    res.status(200).json({ vendors, pagination: { total, page: Number(page), limit: Number(limit), pages: Math.ceil(total / Number(limit)) } });
+  } catch (error) {
+    console.error('Admin get subscriptions error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+// UC-43: Admin gia hạn gói VIP thủ công
+export const adminExtendSubscription = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền.' }); return; }
+
+    const { vendorId } = req.params;
+    const { plan = 'vip', days = 365 } = req.body;
+
+    if (!Types.ObjectId.isValid(vendorId)) { res.status(400).json({ message: 'Vendor ID không hợp lệ.' }); return; }
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) { res.status(404).json({ message: 'Không tìm thấy vendor.' }); return; }
+
+    const now = new Date();
+    const base = vendor.subscriptionExpiry && vendor.subscriptionExpiry > now ? vendor.subscriptionExpiry : now;
+    const newExpiry = new Date(base);
+    newExpiry.setDate(newExpiry.getDate() + Number(days));
+
+    vendor.subscriptionPlan = plan as 'basic' | 'vip';
+    vendor.subscriptionExpiry = newExpiry;
+    vendor.subscriptionStatus = 'active';
+    await vendor.save();
+
+    res.status(200).json({ message: `Gia hạn gói ${plan} thành công.`, vendor: { subscriptionPlan: vendor.subscriptionPlan, subscriptionExpiry: vendor.subscriptionExpiry, subscriptionStatus: vendor.subscriptionStatus } });
+  } catch (error) {
+    console.error('Admin extend subscription error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+// UC-43: Admin thu hồi gói VIP
+export const adminRevokeSubscription = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền.' }); return; }
+
+    const { vendorId } = req.params;
+    if (!Types.ObjectId.isValid(vendorId)) { res.status(400).json({ message: 'Vendor ID không hợp lệ.' }); return; }
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) { res.status(404).json({ message: 'Không tìm thấy vendor.' }); return; }
+
+    vendor.subscriptionStatus = 'inactive';
+    vendor.subscriptionExpiry = undefined;
+    await vendor.save();
+
+    res.status(200).json({ message: 'Thu hồi gói subscription thành công.' });
+  } catch (error) {
+    console.error('Admin revoke subscription error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
   }
 };

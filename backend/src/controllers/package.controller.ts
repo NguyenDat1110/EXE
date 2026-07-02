@@ -4,6 +4,56 @@ import { Vendor } from '../models/vendor.model';
 import { Booth } from '../models/booth.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 
+const MAX_PACKAGE_IMAGES = 10;
+
+// Business rules shared by create/update. Returns an error message or null if valid.
+const validatePackageInput = (input: {
+  name: unknown;
+  price: unknown;
+  minParticipants: unknown;
+  maxParticipants: unknown;
+  depositAmount: unknown;
+  images: unknown;
+}): string | null => {
+  if (typeof input.name !== 'string' || !input.name.trim()) {
+    return 'Vui lòng nhập tên gói dịch vụ.';
+  }
+
+  const price = Number(input.price);
+  if (!Number.isFinite(price) || price <= 0) {
+    return 'Mức giá phải lớn hơn 0.';
+  }
+
+  const minParticipants = Number(input.minParticipants);
+  const maxParticipants = Number(input.maxParticipants);
+  if (!Number.isFinite(minParticipants) || minParticipants <= 0) {
+    return 'Số người tối thiểu phải lớn hơn 0.';
+  }
+  if (!Number.isFinite(maxParticipants) || maxParticipants < minParticipants) {
+    return 'Số người tối đa phải lớn hơn hoặc bằng số tối thiểu.';
+  }
+
+  const depositAmount = Number(input.depositAmount);
+  if (!Number.isFinite(depositAmount) || depositAmount < 0) {
+    return 'Tiền cọc không được âm.';
+  }
+  if (depositAmount > price) {
+    return 'Tiền cọc không được lớn hơn mức giá.';
+  }
+
+  if (!Array.isArray(input.images) || input.images.some((img) => typeof img !== 'string')) {
+    return 'Danh sách ảnh không hợp lệ.';
+  }
+  if (input.images.length === 0) {
+    return 'Cần ít nhất một ảnh minh họa.';
+  }
+  if (input.images.length > MAX_PACKAGE_IMAGES) {
+    return `Chỉ được tải tối đa ${MAX_PACKAGE_IMAGES} ảnh cho mỗi package.`;
+  }
+
+  return null;
+};
+
 // Create package
 export const createPackage = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -48,6 +98,19 @@ export const createPackage = async (req: AuthRequest, res: Response): Promise<vo
 
     if (!boothId) {
       res.status(400).json({ message: 'Vui lòng chọn gian hàng cho gói dịch vụ.' });
+      return;
+    }
+
+    const validationError = validatePackageInput({
+      name,
+      price,
+      minParticipants,
+      maxParticipants,
+      depositAmount: depositAmount === undefined ? 0 : depositAmount,
+      images: images === undefined ? [] : images
+    });
+    if (validationError) {
+      res.status(400).json({ message: validationError });
       return;
     }
 
@@ -111,6 +174,13 @@ export const updatePackage = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    const now = new Date();
+    const hasActiveSubscription = vendor.subscriptionStatus === 'active' && vendor.subscriptionExpiry && vendor.subscriptionExpiry > now;
+    if (!hasActiveSubscription) {
+      res.status(403).json({ message: 'Gói dịch vụ (subscription) của bạn đã hết hạn. Vui lòng gia hạn để chỉnh sửa gói.' });
+      return;
+    }
+
     // If attempting to set model3dUrl ensure VIP
     if (req.body.model3dUrl && vendor.subscriptionPlan !== 'vip') {
       res.status(403).json({ message: 'Tính năng 3D yêu cầu gói VIP.' });
@@ -143,6 +213,20 @@ export const updatePackage = async (req: AuthRequest, res: Response): Promise<vo
     ].forEach(f => {
       if (req.body[f] !== undefined) allowed[f] = req.body[f];
     });
+
+    // Validate the merged result so partial updates can't break business rules
+    const validationError = validatePackageInput({
+      name: allowed.name !== undefined ? allowed.name : pkg.name,
+      price: allowed.price !== undefined ? allowed.price : pkg.price,
+      minParticipants: allowed.minParticipants !== undefined ? allowed.minParticipants : pkg.minParticipants,
+      maxParticipants: allowed.maxParticipants !== undefined ? allowed.maxParticipants : pkg.maxParticipants,
+      depositAmount: allowed.depositAmount !== undefined ? allowed.depositAmount : pkg.depositAmount,
+      images: allowed.images !== undefined ? allowed.images : pkg.images
+    });
+    if (validationError) {
+      res.status(400).json({ message: validationError });
+      return;
+    }
 
     Object.assign(pkg, allowed);
     await pkg.save();

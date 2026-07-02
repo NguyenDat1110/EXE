@@ -40,6 +40,7 @@ import { AdminVendors } from './pages/admin/AdminVendors';
 import AdminArticles from './pages/admin/AdminArticles';
 import Timeline from './pages/customer/Timeline';
 import VendorPosts from './pages/vendor/VendorPosts';
+import VendorFeedback from './pages/vendor/Feedback';
 import Unauthorized from './pages/Unauthorized';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -117,6 +118,7 @@ export default function App() {
                 <Route path="/vendor/registration/form" element={<VendorSubmissionForm />} />
                 <Route path="/vendor/subscription" element={<SubscriptionPlans />} />
                 <Route path="/vendor/posts" element={<VendorPosts />} />
+                <Route path="/vendor/feedback" element={<VendorFeedback />} />
                 <Route path="/vendor/subscription-checkout" element={<SubscriptionCheckout />} />
               </Route>
               {/* Full-screen Vendor pages without VendorLayout header */}

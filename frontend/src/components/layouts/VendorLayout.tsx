@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { LayoutDashboard, Briefcase, LogOut, Menu, X, User, FileCheck, Zap, Newspaper } from 'lucide-react';
+import { LayoutDashboard, Briefcase, LogOut, Menu, X, User, FileCheck, Zap, Newspaper, Star } from 'lucide-react';
 import { NotificationBell } from '../ui/NotificationBell';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -16,6 +16,7 @@ export function VendorLayout() {
     { label: 'Dashboard', path: '/vendor/dashboard', icon: LayoutDashboard },
     { label: 'Quản Lí Gian Hàng', path: '/vendor/packages', icon: Briefcase },
     { label: 'Bài Viết', path: '/vendor/posts', icon: Newspaper },
+    { label: 'Đánh Giá', path: '/vendor/feedback', icon: Star },
     { label: 'Hồ sơ', path: '/vendor/profile', icon: User },
     { label: 'Đăng Kí Doanh Nghiệp', path: '/vendor/registration', icon: FileCheck },
     { label: 'Nâng Cấp Gói', path: '/vendor/subscription', icon: Zap },

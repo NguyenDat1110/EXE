@@ -283,6 +283,12 @@ export default function BoothDetail() {
                       {rev.comment && (
                         <p className="text-sm text-silver/80 pl-1">{rev.comment}</p>
                       )}
+                      {rev.vendorReply && (
+                        <div className="ml-4 border-l-2 border-cyan/30 pl-4 py-1 bg-cyan/5 rounded-r-xl">
+                          <p className="text-xs font-semibold text-cyan mb-1">Phản hồi từ nhà cung cấp</p>
+                          <p className="text-sm text-silver/80">{rev.vendorReply}</p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

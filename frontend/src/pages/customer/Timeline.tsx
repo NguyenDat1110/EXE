@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Loader2, Heart, Calendar, Search, Filter } from 'lucide-react';
+import { Loader2, Heart, Calendar, Search, Filter, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getTimelinePosts, Post } from '../../services/postApi';
 
 const BASE_URL = 'http://localhost:5000';
@@ -39,13 +39,32 @@ export default function Timeline() {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('Tất cả');
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
 
-  const fetchPosts = useCallback(async (pageNum = 1, replace = true) => {
+  const openLightbox = (images: string[], index: number) => setLightbox({ images, index });
+  const closeLightbox = () => setLightbox(null);
+  const showPrevImage = () =>
+    setLightbox((prev) => (prev ? { ...prev, index: (prev.index - 1 + prev.images.length) % prev.images.length } : prev));
+  const showNextImage = () =>
+    setLightbox((prev) => (prev ? { ...prev, index: (prev.index + 1) % prev.images.length } : prev));
+
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') showPrevImage();
+      if (e.key === 'ArrowRight') showNextImage();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [lightbox]);
+
+  const fetchPosts = useCallback(async (pageNum = 1, replace = true, type = filterType, keyword = search) => {
     try {
       if (replace) setLoading(true);
       else setLoadingMore(true);
 
-      const data = await getTimelinePosts(pageNum, 10);
+      const data = await getTimelinePosts(pageNum, 10, type, keyword);
 
       setPosts((prev) => replace ? data.posts : [...prev, ...data.posts]);
       setTotalPages(data.pagination.totalPages);
@@ -56,11 +75,39 @@ export default function Timeline() {
       setLoading(false);
       setLoadingMore(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Initial load
   useEffect(() => {
-    fetchPosts(1, true);
-  }, [fetchPosts]);
+    fetchPosts(1, true, filterType, search);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Reload from page 1 whenever the category filter changes (instant)
+  const isFirstFilterRender = React.useRef(true);
+  useEffect(() => {
+    if (isFirstFilterRender.current) {
+      isFirstFilterRender.current = false;
+      return;
+    }
+    fetchPosts(1, true, filterType, search);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterType]);
+
+  // Debounce search input before hitting the API
+  const isFirstSearchRender = React.useRef(true);
+  useEffect(() => {
+    if (isFirstSearchRender.current) {
+      isFirstSearchRender.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      fetchPosts(1, true, filterType, search);
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   const toggleLike = (postId: string) => {
     setLikedPosts((prev) => {
@@ -70,16 +117,6 @@ export default function Timeline() {
       return next;
     });
   };
-
-  const filteredPosts = posts.filter((p) => {
-    const matchSearch =
-      !search ||
-      p.title.toLowerCase().includes(search.toLowerCase()) ||
-      p.vendorName.toLowerCase().includes(search.toLowerCase()) ||
-      p.content.toLowerCase().includes(search.toLowerCase());
-    const matchType = filterType === 'Tất cả' || p.eventType === filterType;
-    return matchSearch && matchType;
-  });
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
@@ -124,14 +161,14 @@ export default function Timeline() {
         <div className="flex justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-cyan" />
         </div>
-      ) : filteredPosts.length === 0 ? (
+      ) : posts.length === 0 ? (
         <div className="text-center py-20">
           <Filter className="w-12 h-12 text-white/20 mx-auto mb-4" />
           <p className="text-white/50">Không tìm thấy bài viết nào</p>
         </div>
       ) : (
         <div className="space-y-5">
-          {filteredPosts.map((post) => (
+          {posts.map((post) => (
             <article key={post._id} className="bg-white/3 border border-white/8 rounded-2xl overflow-hidden hover:border-white/15 transition-colors">
               {/* Post Header */}
               <div className="flex items-center gap-3 p-4 pb-3">
@@ -176,7 +213,11 @@ export default function Timeline() {
                   post.images.length >= 3 ? 'grid-cols-3' : ''
                 }`}>
                   {post.images.slice(0, 6).map((img, i) => (
-                    <div key={i} className={`relative ${post.images.length === 1 ? 'aspect-video' : 'aspect-square'} ${i === 5 && post.images.length > 6 ? 'relative' : ''}`}>
+                    <div
+                      key={i}
+                      onClick={() => openLightbox(post.images, i)}
+                      className={`relative cursor-zoom-in ${post.images.length === 1 ? 'aspect-video' : 'aspect-square'} ${i === 5 && post.images.length > 6 ? 'relative' : ''}`}
+                    >
                       <img
                         src={`${BASE_URL}${img}`}
                         alt=""
@@ -220,6 +261,51 @@ export default function Timeline() {
                   <><Loader2 className="w-4 h-4 animate-spin" /> Đang tải...</>
                 ) : 'Xem thêm'}
               </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Image Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+          onClick={closeLightbox}
+        >
+          <button
+            onClick={closeLightbox}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {lightbox.images.length > 1 && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); showPrevImage(); }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); showNextImage(); }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </>
+          )}
+
+          <img
+            src={`${BASE_URL}${lightbox.images[lightbox.index]}`}
+            alt=""
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-full max-h-full object-contain rounded-lg"
+          />
+
+          {lightbox.images.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-sm">
+              {lightbox.index + 1} / {lightbox.images.length}
             </div>
           )}
         </div>

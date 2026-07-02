@@ -85,12 +85,25 @@ export const getAllPosts = async (req: AuthRequest, res: Response): Promise<void
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
+    const filter: Record<string, unknown> = { isPublished: true };
+
+    const eventType = req.query.eventType as string | undefined;
+    if (eventType && eventType !== 'Tất cả') {
+      filter.eventType = eventType;
+    }
+
+    const search = (req.query.search as string | undefined)?.trim();
+    if (search) {
+      const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [{ title: regex }, { content: regex }, { vendorName: regex }];
+    }
+
     const [posts, total] = await Promise.all([
-      Post.find({ isPublished: true })
+      Post.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
-      Post.countDocuments({ isPublished: true }),
+      Post.countDocuments(filter),
     ]);
 
     res.json({

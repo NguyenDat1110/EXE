@@ -73,12 +73,12 @@ export default function Explore() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {categories.map((cat) => (
           <button
             key={cat.slug}
             onClick={() => navigate(`/explore/${cat.slug}`)}
-            className="group relative h-72 rounded-3xl overflow-hidden cursor-pointer border border-white/10 hover:border-cyan/50 transition-all duration-300 text-left"
+            className="group relative h-96 rounded-3xl overflow-hidden cursor-pointer border border-white/10 hover:border-cyan/50 transition-all duration-300 text-left"
           >
             <img
               src={cat.image}
@@ -88,11 +88,11 @@ export default function Explore() {
             <div className={`absolute inset-0 bg-gradient-to-t ${cat.accent} via-navy/50 to-navy/20`} />
             <div className="absolute inset-0 bg-gradient-to-t from-navy via-transparent to-transparent" />
 
-            <div className="absolute bottom-5 left-5 right-5">
+            <div className="absolute bottom-6 left-6 right-6">
               <span className="inline-flex items-center rounded-full border border-white/20 bg-black/20 px-3 py-1 text-xs tracking-[0.14em] uppercase text-cyan/90">
                 {loading ? 'Đang tải...' : `${cat.count} gian hàng`}
               </span>
-              <h3 className="text-2xl font-bold font-manrope text-white mt-3">{cat.title}</h3>
+              <h3 className="text-3xl font-bold font-manrope text-white mt-3">{cat.title}</h3>
             </div>
           </button>
         ))}

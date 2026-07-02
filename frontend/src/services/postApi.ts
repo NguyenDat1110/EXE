@@ -26,8 +26,16 @@ export interface PostsResponse {
 }
 
 // Lấy tất cả bài viết (customer timeline)
-export const getTimelinePosts = async (page = 1, limit = 10): Promise<PostsResponse> => {
-  const res = await api.get(`/posts?page=${page}&limit=${limit}`);
+export const getTimelinePosts = async (
+  page = 1,
+  limit = 10,
+  eventType?: string,
+  search?: string
+): Promise<PostsResponse> => {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (eventType && eventType !== 'Tất cả') params.set('eventType', eventType);
+  if (search) params.set('search', search);
+  const res = await api.get(`/posts?${params.toString()}`);
   return res.data;
 };
 

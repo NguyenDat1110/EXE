@@ -6,9 +6,7 @@
 // Provide typing for Vite's import.meta.env to satisfy TypeScript
 declare global {
   interface ImportMetaEnv {
-    VITE_SEPAY_BANK_ID: string;
-    VITE_SEPAY_ACCOUNT_NO: string;
-    VITE_SEPAY_ACCOUNT_NAME: string;
+    VITE_API_URL?: string;
     VITE_CLOUDINARY_CLOUD_NAME?: string;
     VITE_CLOUDINARY_UPLOAD_PRESET?: string;
   }

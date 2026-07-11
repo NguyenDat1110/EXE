@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, MapPin, DollarSign, Clock3, AlertTriangle, Image as ImageIcon, Banknote, X, Upload, CheckCircle2, Star } from 'lucide-react';
+import { CalendarDays, MapPin, DollarSign, Clock3, AlertTriangle, Image as ImageIcon, Banknote, X, Star } from 'lucide-react';
 import {
   cancelBooking,
   confirmCustomerComplete,
-  getMyBookings,
-  payBookingDeposit,
-  payFinalBalance
+  getMyBookings
 } from '../../services/bookingsApi';
+import { createBookingDepositPayment, createBookingFinalPayment } from '../../services/paymentApi';
 import { createReview } from '../../services/reviewApi';
 
 const statusLabel = (status: string) => {
@@ -25,10 +24,7 @@ export default function CustomerBookings() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
-  const [paymentModalBooking, setPaymentModalBooking] = useState<any | null>(null);
-  const [paymentFile, setPaymentFile] = useState<File | null>(null);
-  const [paymentPreview, setPaymentPreview] = useState<string | null>(null);
-  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Review states
   const [reviewModalBooking, setReviewModalBooking] = useState<any | null>(null);
@@ -88,67 +84,31 @@ export default function CustomerBookings() {
 
   const handleAction = async (bookingId: string, action: 'cancel' | 'deposit' | 'confirm' | 'final') => {
     setActionLoadingId(bookingId);
+    setPaymentError(null);
     try {
       if (action === 'cancel') await cancelBooking(bookingId);
-      if (action === 'deposit') {
-        const booking = bookings.find((item) => item._id === bookingId);
-        if (booking) {
-          setPaymentModalBooking(booking);
-          setPaymentFile(null);
-          setPaymentPreview(null);
-        }
-        setActionLoadingId(null);
-        return;
-      }
       if (action === 'confirm') await confirmCustomerComplete(bookingId);
-      if (action === 'final') {
-        const booking = bookings.find((item) => item._id === bookingId);
-        if (booking) {
-          setPaymentModalBooking(booking);
-          setPaymentFile(null);
-          setPaymentPreview(null);
-        }
-        setActionLoadingId(null);
+
+      // Thanh toán qua PayOS: tạo link rồi chuyển hướng đến trang thanh toán
+      if (action === 'deposit' || action === 'final') {
+        const res = action === 'deposit'
+          ? await createBookingDepositPayment(bookingId)
+          : await createBookingFinalPayment(bookingId);
+        const checkoutUrl = res?.data?.checkoutUrl;
+        if (!checkoutUrl) throw new Error('Không thể tạo link thanh toán');
+        window.location.href = checkoutUrl;
         return;
       }
-      await loadBookings();
-    } catch {
-      // handled by UI state refresh
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
 
-  const handlePaymentSubmit = async () => {
-    if (!paymentModalBooking) return;
-    setPaymentSubmitting(true);
-    setActionLoadingId(paymentModalBooking._id);
-    try {
-      if (paymentModalBooking.status === 'waiting_deposit') {
-        await payBookingDeposit(paymentModalBooking._id, paymentFile || undefined);
-      } else if (paymentModalBooking.status === 'customer_completed') {
-        await payFinalBalance(paymentModalBooking._id, paymentFile || undefined);
+      await loadBookings();
+    } catch (err: any) {
+      if (action === 'deposit' || action === 'final') {
+        setPaymentError(err?.response?.data?.message || err?.message || 'Không thể tạo link thanh toán. Vui lòng thử lại.');
       }
-      await loadBookings();
-      setPaymentModalBooking(null);
-      setPaymentFile(null);
-      setPaymentPreview(null);
     } finally {
-      setPaymentSubmitting(false);
       setActionLoadingId(null);
     }
   };
-
-  useEffect(() => {
-    if (!paymentFile) {
-      setPaymentPreview(null);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(paymentFile);
-    setPaymentPreview(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [paymentFile]);
 
   return (
     <div className="space-y-8">
@@ -156,6 +116,12 @@ export default function CustomerBookings() {
         <h1 className="text-3xl font-bold tracking-tight text-white font-manrope">Đơn Đặt Chỗ Của Tôi</h1>
         <p className="text-silver/60 mt-1">Theo dõi trạng thái, thanh toán cọc và hoàn tất đơn sau sự kiện.</p>
       </div>
+
+      {paymentError && (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0" /> {paymentError}
+        </div>
+      )}
 
       {loading ? (
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-slate-400">Đang tải booking...</div>
@@ -224,7 +190,7 @@ export default function CustomerBookings() {
                       onClick={() => handleAction(b._id, 'deposit')}
                       className="px-5 py-2.5 bg-cyan/15 hover:bg-cyan/25 border border-cyan/35 text-cyan hover:text-white rounded-full font-bold text-xs uppercase tracking-wider transition-all duration-300 disabled:opacity-60"
                     >
-                      Thanh toán cọc
+                      {isLoading ? 'Đang tạo link...' : 'Thanh toán cọc qua PayOS'}
                     </button>
                   )}
                   {isDepositPending && (
@@ -247,7 +213,7 @@ export default function CustomerBookings() {
                       onClick={() => handleAction(b._id, 'final')}
                       className="px-5 py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 hover:text-white rounded-full font-bold text-xs uppercase tracking-wider transition-all duration-300 disabled:opacity-60"
                     >
-                      Gửi biên lai phần còn lại
+                      {isLoading ? 'Đang tạo link...' : 'Thanh toán phần còn lại qua PayOS'}
                     </button>
                   )}
                   {b.status === 'confirmed' && (
@@ -303,105 +269,6 @@ export default function CustomerBookings() {
           })}
         </div>
       )}
-      {paymentModalBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-          <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#111827] shadow-2xl overflow-hidden">
-            <div className="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-5">
-              <div>
-                <h2 className="text-2xl font-bold text-white">Thanh toán cọc</h2>
-                <p className="mt-1 text-sm text-slate-400">Chuyển khoản theo thông tin bên dưới và tải biên lai lên để gửi cho vendor.</p>
-              </div>
-              <button
-                onClick={() => {
-                  setPaymentModalBooking(null);
-                  setPaymentFile(null);
-                  setPaymentPreview(null);
-                }}
-                className="rounded-full p-2 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
-                aria-label="Đóng modal"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="grid gap-5 px-6 py-6 md:grid-cols-2">
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">Tên chủ tài khoản</p>
-                  <p className="text-base font-semibold text-white">{paymentModalBooking.vendor?.accountHolderName || '---'}</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">Số tài khoản</p>
-                  <p className="text-base font-semibold text-white">{paymentModalBooking.vendor?.accountNumber || '---'}</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">Tên ngân hàng</p>
-                  <p className="text-base font-semibold text-white">{paymentModalBooking.vendor?.bankName || '---'}</p>
-                </div>
-                <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4">
-                  <p className="text-xs uppercase tracking-wider text-primary/80 mb-1">Số tiền cần thanh toán</p>
-                  <p className="text-2xl font-bold text-primary">{formatMoney(paymentModalBooking.depositAmount || 0)}</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/20 bg-white/[0.03] px-4 py-10 text-center hover:border-primary/50 hover:bg-white/[0.06] transition-colors">
-                  <Upload className="mb-3 h-8 w-8 text-slate-400" />
-                  <span className="text-sm font-semibold text-white">Tải biên lai thanh toán</span>
-                  <span className="mt-1 text-xs text-slate-500">PNG, JPG, PDF - xem trước trước khi gửi</span>
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    className="hidden"
-                    onChange={(e) => {
-                      const nextFile = e.target.files?.[0] || null;
-                      setPaymentFile(nextFile);
-                    }}
-                  />
-                </label>
-
-                {paymentPreview && paymentFile?.type.startsWith('image/') && (
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                    <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
-                      <ImageIcon className="h-4 w-4 text-cyan" /> Xem trước biên lai
-                    </div>
-                    <img src={paymentPreview} alt="Receipt preview" className="max-h-64 w-full rounded-xl border border-white/10 object-contain bg-black/20" />
-                  </div>
-                )}
-
-                {paymentFile && !paymentFile.type.startsWith('image/') && (
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">
-                    Đã chọn file: <span className="font-semibold text-white">{paymentFile.name}</span>
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() => {
-                      setPaymentModalBooking(null);
-                      setPaymentFile(null);
-                      setPaymentPreview(null);
-                    }}
-                    className="flex-1 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-white/5"
-                    type="button"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    onClick={handlePaymentSubmit}
-                    disabled={paymentSubmitting}
-                    className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-bold uppercase tracking-widest text-background-dark disabled:opacity-60"
-                    type="button"
-                  >
-                    {paymentSubmitting ? 'Đang gửi...' : 'Thanh toán cọc'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {reviewModalBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#111827] shadow-2xl overflow-hidden">

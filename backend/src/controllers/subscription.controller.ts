@@ -18,6 +18,24 @@ export const SUBSCRIPTION_PLANS = {
   }
 };
 
+// Kích hoạt gói cho vendor - dùng chung cho gói miễn phí và webhook PayOS sau khi thanh toán thành công
+export const activateVendorSubscription = async (vendorId: unknown, plan: 'basic' | 'vip') => {
+  const vendor = await Vendor.findById(vendorId);
+  if (!vendor) {
+    throw new Error('Vendor not found');
+  }
+
+  const expiryDate = new Date();
+  expiryDate.setDate(expiryDate.getDate() + SUBSCRIPTION_PLANS[plan].duration);
+
+  vendor.subscriptionPlan = plan;
+  vendor.subscriptionExpiry = expiryDate;
+  vendor.subscriptionStatus = 'active';
+
+  await vendor.save();
+  return vendor;
+};
+
 export const updateSubscription = async (req: AuthRequest, res: Response) => {
   try {
     const { plan } = req.body;
@@ -29,6 +47,13 @@ export const updateSubscription = async (req: AuthRequest, res: Response) => {
 
     if (!plan || !['basic', 'vip'].includes(plan)) {
       return res.status(400).json({ message: 'Invalid subscription plan' });
+    }
+
+    const planConfig = SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS];
+
+    // Gói trả phí phải thanh toán qua PayOS (POST /api/payment/subscription)
+    if (planConfig.price > 0) {
+      return res.status(400).json({ message: 'Gói trả phí cần được thanh toán qua PayOS. Vui lòng sử dụng luồng thanh toán.' });
     }
 
     const vendor = await Vendor.findOne({ userId });
@@ -49,22 +74,14 @@ export const updateSubscription = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Calculate expiry date (365 days from now)
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS].duration);
-
-    vendor.subscriptionPlan = plan as 'basic' | 'vip';
-    vendor.subscriptionExpiry = expiryDate;
-    vendor.subscriptionStatus = 'active';
-
-    await vendor.save();
+    const updatedVendor = await activateVendorSubscription(vendor._id, plan as 'basic' | 'vip');
 
     res.json({
       message: 'Subscription updated successfully',
       vendor: {
-        subscriptionPlan: vendor.subscriptionPlan,
-        subscriptionExpiry: vendor.subscriptionExpiry,
-        subscriptionStatus: vendor.subscriptionStatus
+        subscriptionPlan: updatedVendor.subscriptionPlan,
+        subscriptionExpiry: updatedVendor.subscriptionExpiry,
+        subscriptionStatus: updatedVendor.subscriptionStatus
       }
     });
   } catch (err) {

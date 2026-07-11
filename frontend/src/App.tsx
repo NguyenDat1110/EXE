@@ -42,6 +42,7 @@ import Timeline from './pages/customer/Timeline';
 import VendorPosts from './pages/vendor/VendorPosts';
 import VendorFeedback from './pages/vendor/Feedback';
 import Unauthorized from './pages/Unauthorized';
+import PaymentResult from './pages/PaymentResult';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -82,6 +83,11 @@ export default function App() {
           {/* Public Routes */}
           <Route element={<PublicLayout />}>
             <Route path="/" element={<LandingPage />} />
+          </Route>
+
+          {/* Trang kết quả thanh toán PayOS (returnUrl/cancelUrl) - dùng chung cho customer & vendor */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/payment/result" element={<PaymentResult />} />
           </Route>
 
           <Route path="/login" element={<LoginPage />} />

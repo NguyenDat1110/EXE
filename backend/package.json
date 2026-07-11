@@ -9,6 +9,7 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@payos/node": "^1.0.10",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

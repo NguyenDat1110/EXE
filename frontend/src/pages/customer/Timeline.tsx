@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Loader2, Heart, Calendar, Search, Filter, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Heart, Calendar, Search, Filter } from 'lucide-react';
 import { getTimelinePosts, Post } from '../../services/postApi';
+import { ImageLightbox } from '../../components/ui/ImageLightbox';
 
 const BASE_URL = 'http://localhost:5000';
 
@@ -41,23 +42,12 @@ export default function Timeline() {
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
 
-  const openLightbox = (images: string[], index: number) => setLightbox({ images, index });
+  const openLightbox = (images: string[], index: number) => setLightbox({ images: images.map((img) => `${BASE_URL}${img}`), index });
   const closeLightbox = () => setLightbox(null);
   const showPrevImage = () =>
     setLightbox((prev) => (prev ? { ...prev, index: (prev.index - 1 + prev.images.length) % prev.images.length } : prev));
   const showNextImage = () =>
     setLightbox((prev) => (prev ? { ...prev, index: (prev.index + 1) % prev.images.length } : prev));
-
-  useEffect(() => {
-    if (!lightbox) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeLightbox();
-      if (e.key === 'ArrowLeft') showPrevImage();
-      if (e.key === 'ArrowRight') showNextImage();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [lightbox]);
 
   const fetchPosts = useCallback(async (pageNum = 1, replace = true, type = filterType, keyword = search) => {
     try {
@@ -268,47 +258,13 @@ export default function Timeline() {
 
       {/* Image Lightbox */}
       {lightbox && (
-        <div
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-          onClick={closeLightbox}
-        >
-          <button
-            onClick={closeLightbox}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-
-          {lightbox.images.length > 1 && (
-            <>
-              <button
-                onClick={(e) => { e.stopPropagation(); showPrevImage(); }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-              >
-                <ChevronLeft className="w-6 h-6" />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); showNextImage(); }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-              >
-                <ChevronRight className="w-6 h-6" />
-              </button>
-            </>
-          )}
-
-          <img
-            src={`${BASE_URL}${lightbox.images[lightbox.index]}`}
-            alt=""
-            onClick={(e) => e.stopPropagation()}
-            className="max-w-full max-h-full object-contain rounded-lg"
-          />
-
-          {lightbox.images.length > 1 && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-sm">
-              {lightbox.index + 1} / {lightbox.images.length}
-            </div>
-          )}
-        </div>
+        <ImageLightbox
+          images={lightbox.images}
+          index={lightbox.index}
+          onClose={closeLightbox}
+          onPrev={showPrevImage}
+          onNext={showNextImage}
+        />
       )}
     </div>
   );

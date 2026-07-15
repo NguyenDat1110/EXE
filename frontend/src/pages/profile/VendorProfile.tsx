@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Star, MapPin, Phone, Mail, Edit2, Check, X, Plus, Trash2, GripHorizontal, Upload, Loader } from 'lucide-react';
-import { clsx } from 'clsx';
+import { Star, MapPin, Phone, Mail, Edit2, Check, X, Plus, Trash2, GripHorizontal, Loader, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
-import { Avatar } from '../../components/ui/Avatar';
 import { Tabs, type TabItem } from '../../components/ui/Tabs';
 import { FileUpload } from '../../components/ui/FileUpload';
 import { uploadToCloudinary, optimizeCloudinaryUrl } from '../../services/cloudinary';
@@ -99,7 +97,7 @@ function EditableField({ label, value, icon, onSave, multiline }: EditableFieldP
 }
 
 export function VendorProfile({ showToast }: { showToast?: (msg: string, type?: 'success' | 'error' | 'info') => void }) {
-  const { user, updateProfile, setUser } = useAuthStore();
+  const { user, updateProfile } = useAuthStore();
   const [portfolio, setPortfolio] = useState<string[]>(user?.portfolio || []);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
@@ -137,19 +135,7 @@ export function VendorProfile({ showToast }: { showToast?: (msg: string, type?: 
     }
 
     try {
-      const payload = {
-        companyName: companyName.trim(),
-        taxId: taxId.trim(),
-        companyAddress: companyAddress.trim(),
-        businessLicense: vendor?.businessLicense || '',
-        phone: vendor?.phone || user.phone || '',
-        email: vendor?.email || user.email || '',
-        website: vendor?.website || '',
-        bio: value,
-        avatar: vendor?.avatar || user.avatar || ''
-      };
-
-      const res = await api.post('/vendor/submit-info', payload);
+      const res = await api.post('/vendor/profile/update', { bio: value });
       // refresh vendor state
       const refreshed = await api.get('/vendor/info');
       setVendor(refreshed.data.vendor);
@@ -187,18 +173,7 @@ export function VendorProfile({ showToast }: { showToast?: (msg: string, type?: 
       await handleSaveProfileField('phone', value);
       // also sync phone into vendor document so vendor.phone matches user.phone
       try {
-        const payload = {
-          companyName: vendor?.companyName || user.companyName || '',
-          taxId: vendor?.taxId || user.taxId || '',
-          companyAddress: vendor?.companyAddress || user.companyAddress || '',
-          businessLicense: vendor?.businessLicense || '',
-          phone: value,
-          email: vendor?.email || user.email || '',
-          website: vendor?.website || '',
-          bio: vendor?.bio || '',
-          avatar: vendor?.avatar || user.avatar || ''
-        };
-        await api.post('/vendor/submit-info', payload);
+        await api.post('/vendor/profile/update', { phone: value });
       } catch (err) {
         // non-fatal: log and continue to refresh
         console.error('Failed to sync phone to vendor:', err);
@@ -218,18 +193,7 @@ export function VendorProfile({ showToast }: { showToast?: (msg: string, type?: 
       await handleSaveProfileField('email', value);
       // sync email to vendor record as well
       try {
-        const payload = {
-          companyName: vendor?.companyName || user.companyName || '',
-          taxId: vendor?.taxId || user.taxId || '',
-          companyAddress: vendor?.companyAddress || user.companyAddress || '',
-          businessLicense: vendor?.businessLicense || '',
-          phone: vendor?.phone || user.phone || '',
-          email: value,
-          website: vendor?.website || '',
-          bio: vendor?.bio || '',
-          avatar: vendor?.avatar || user.avatar || ''
-        };
-        await api.post('/vendor/submit-info', payload);
+        await api.post('/vendor/profile/update', { email: value });
       } catch (err) {
         console.error('Failed to sync email to vendor:', err);
       }
@@ -250,21 +214,9 @@ export function VendorProfile({ showToast }: { showToast?: (msg: string, type?: 
     }
 
     try {
-      const payload: any = {
-        companyName: companyName.trim(),
-        taxId: taxId.trim(),
-        companyAddress: companyAddress.trim(),
-        businessLicense: vendor?.businessLicense || '',
-        phone: vendor?.phone || user.phone || '',
-        email: vendor?.email || user.email || '',
-        website: vendor?.website || '',
-        bio: vendor?.bio || '' ,
-        avatar: vendor?.avatar || user.avatar || ''
-      };
+      const payload: any = { [field]: value };
 
-      payload[field] = value;
-
-      const res = await api.post('/vendor/submit-info', payload);
+      const res = await api.post('/vendor/profile/update', payload);
       const refreshed = await api.get('/vendor/info');
       setVendor(refreshed.data.vendor);
       showToast?.('Cập nhật thành công', 'success');
@@ -285,11 +237,21 @@ export function VendorProfile({ showToast }: { showToast?: (msg: string, type?: 
     try {
       const uploadedImage = await uploadToCloudinary(file, 'eventflow/vendor-avatars');
       const optimizedUrl = optimizeCloudinaryUrl(uploadedImage.secure_url, 200, 200, 85);
+      await api.post('/vendor/profile/update', { avatar: optimizedUrl });
       await updateProfile({ avatar: optimizedUrl });
+      const refreshed = await api.get('/vendor/info');
+      setVendor(refreshed.data.vendor);
+      showToast?.('Cập nhật ảnh đại diện thành công', 'success');
     } catch (error) {
       setAvatarError(error instanceof Error ? error.message : 'Lỗi tải lên avatar');
     } finally {
       setIsUploadingAvatar(false);
+    }
+  };
+
+  const setUserField = (field: string, value: string) => {
+    if (user) {
+      useAuthStore.setState({ user: { ...user, [field]: value } });
     }
   };
 
@@ -389,18 +351,6 @@ export function VendorProfile({ showToast }: { showToast?: (msg: string, type?: 
             multiline
             onSave={(val) => handleSaveVendorBio(val)}
           />
-
-          <div className="glass-panel px-6 py-4 rounded-xl">
-            <label className="text-silver text-sm font-medium">Loại sự kiện</label>
-            <div className="flex gap-4 mt-3">
-              {['Corporate', 'Birthday', 'Wedding'].map(type => (
-                <label key={type} className="flex items-center gap-2">
-                  <input type="checkbox" className="w-4 h-4 accent-cyan" checked={false} readOnly />
-                  <span className="text-white">{type}</span>
-                </label>
-              ))}
-            </div>
-          </div>
         </div>
       ),
     },
@@ -467,74 +417,31 @@ export function VendorProfile({ showToast }: { showToast?: (msg: string, type?: 
       label: 'Đánh giá & Nhận xét',
       content: (
         <div className="space-y-4">
-          <div className="glass-panel p-6 rounded-xl">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <div className="flex items-center gap-2">
-                  <div className="text-4xl font-bold text-white">4.8</div>
-                  <div className="text-cyan flex">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 fill-cyan" />
-                    ))}
+          {vendor?.reviewCount > 0 ? (
+            <div className="glass-panel p-6 rounded-xl">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-4xl font-bold text-white">{vendor.averageRating.toFixed(1)}</div>
+                    <div className="text-cyan flex">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className={`w-5 h-5 ${i < Math.round(vendor.averageRating) ? 'fill-cyan' : 'text-silver/30'}`} />
+                      ))}
+                    </div>
                   </div>
+                  <p className="text-silver/60 text-sm mt-1">{vendor.reviewCount} đánh giá</p>
                 </div>
-                <p className="text-silver/60 text-sm mt-1">256 đánh giá</p>
               </div>
             </div>
-
-            {/* Rating Bars */}
-            {[5, 4, 3, 2, 1].map(stars => (
-              <div key={stars} className="flex items-center gap-3 mb-3">
-                <span className="text-silver/60 text-sm w-4">{stars}★</span>
-                <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(6 - Math.abs(stars - 3)) * 15}%` }}
-                    transition={{ delay: 0.3, duration: 0.6 }}
-                    className="h-full bg-gradient-to-r from-cyan to-cyan/50"
-                  />
-                </div>
-                <span className="text-silver/40 text-xs w-8 text-right">
-                  {Math.floor((6 - Math.abs(stars - 3)) * 10)}%
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div className="glass-panel px-6 py-8 rounded-xl text-center">
-            <p className="text-silver/60">Chưa có đánh giá nào</p>
-          </div>
+          ) : (
+            <div className="glass-panel px-6 py-8 rounded-xl text-center">
+              <p className="text-silver/60">Chưa có đánh giá</p>
+            </div>
+          )}
         </div>
       ),
     },
-    {
-      id: 'stats',
-      label: 'Thống kê',
-      content: (
-        <div className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
-            {[
-              { label: 'Tổng Booking', value: '0', icon: '📅' },
-              { label: 'Tỷ lệ hoàn thành', value: '100%', icon: '✅' },
-              { label: 'Thời phản hồi', value: '< 1 giờ', icon: '⏱️' },
-              { label: 'Doanh thu tháng này', value: '₫ 0', icon: '💰' },
-            ].map((stat, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="glass-panel p-6 rounded-xl"
-              >
-                <div className="text-3xl mb-2">{stat.icon}</div>
-                <p className="text-silver/60 text-sm">{stat.label}</p>
-                <p className="text-white font-bold text-2xl mt-1">{stat.value}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      ),
-    },
+
   ];
 
   return (
@@ -562,59 +469,53 @@ export function VendorProfile({ showToast }: { showToast?: (msg: string, type?: 
               className="glass-panel p-8 rounded-2xl"
             >
               <div className="mb-4 relative inline-block mx-auto">
-                <Avatar
-                  src={user.avatar}
-                  alt={user.companyName}
-                  size="xl"
-                  ring
-                  className="mx-auto"
-                />
-                <button
-                  onClick={() => avatarInputRef.current?.click()}
-                  disabled={isUploadingAvatar}
-                  className={clsx(
-                    'absolute bottom-0 right-0 bg-cyan text-navy p-2 rounded-full',
-                    'hover:bg-cyan/80 transition-all shadow-lg',
-                    isUploadingAvatar && 'opacity-50 cursor-not-allowed'
-                  )}
-                >
-                  {isUploadingAvatar ? (
-                    <Loader className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Upload className="w-5 h-5" />
-                  )}
-                </button>
+                <div className="w-24 h-24 rounded-full overflow-hidden mx-auto border-2 border-cyan/30">
+                  <img
+                    src={vendor?.avatar || 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQFkynomoGh-mf28tLKv9-80ZttJNGKW-0BejjYAgmDQw&s=10'}
+                    alt={vendor?.companyName || user.companyName}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
                 <input
-                  ref={avatarInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  onChange={handleAvatarUpload}
+                  accept="image/*"
                   className="hidden"
+                  ref={avatarInputRef}
+                  onChange={handleAvatarUpload}
                 />
-                <div className="absolute top-0 right-0 px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-full text-emerald-300 text-xs font-semibold">
-                  Đang hoạt động
+                {avatarError && (
+                  <p className="text-red-400 text-sm text-center mt-1">{avatarError}</p>
+                )}
+                <div className="mt-2 text-center space-y-1">
+                  <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-full text-emerald-300 text-xs font-semibold block">
+                    Đang hoạt động
+                    {vendor?.reviewCount > 0 && ` (${vendor.reviewCount} đánh giá)`}
+                  </span>
+                  <button
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={isUploadingAvatar}
+                    className="px-3 py-1.5 bg-cyan/20 border border-cyan/40 rounded-lg text-cyan text-xs font-medium hover:bg-cyan/30 transition-colors disabled:opacity-50"
+                  >
+                    {isUploadingAvatar ? 'Đang tải...' : 'Chỉnh sửa ảnh'}
+                  </button>
                 </div>
               </div>
-              {avatarError && (
-                <p className="text-red-400 text-sm mb-2 text-center">{avatarError}</p>
-              )}
-              <h2 className="font-display text-2xl text-white mb-2 text-center">{user.companyName}</h2>
+              <h2 className="font-display text-2xl text-white mb-2 text-center">{vendor?.companyName || user.companyName}</h2>
               <div className="flex justify-center items-center gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-cyan text-cyan" />
-                ))}
-                <span className="text-silver/60 text-xs ml-2">(256 đánh giá)</span>
-              </div>
-              <button
-                onClick={() => avatarInputRef.current?.click()}
-                disabled={isUploadingAvatar}
-                className={clsx(
-                  'w-full py-2 rounded-lg bg-gradient-to-r from-cyan to-cyan/70 text-navy font-semibold hover:shadow-lg hover:shadow-cyan/30 transition-all',
-                  isUploadingAvatar && 'opacity-50 cursor-not-allowed'
+                {vendor?.averageRating ? (
+                  <>
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${i < Math.round(vendor.averageRating) ? 'fill-cyan text-cyan' : 'text-silver/30'}`}
+                      />
+                    ))}
+                    <span className="text-silver/60 text-xs ml-2">({vendor.averageRating.toFixed(1)})</span>
+                  </>
+                ) : (
+                  <span className="text-silver/40 text-sm">Chưa có đánh giá</span>
                 )}
-              >
-                {isUploadingAvatar ? 'Đang tải...' : 'Chỉnh sửa ảnh'}
-              </button>
+              </div>
             </motion.div>
 
             {/* Right Column - Tabs */}

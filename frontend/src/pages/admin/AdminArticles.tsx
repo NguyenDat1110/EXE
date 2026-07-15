@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, Trash2, Calendar, Search, FileText, AlertCircle } from 'lucide-react';
 import { adminGetAllPosts, adminDeletePost, Post } from '../../services/postApi';
+import { ImageLightbox } from '../../components/ui/ImageLightbox';
 
 const BASE_URL = 'http://localhost:5000';
 
@@ -23,9 +24,16 @@ export default function AdminArticles() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
+  const [eventFilter, setEventFilter] = useState('Tất cả');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
+
+  const openLightbox = (images: string[], index: number) => setLightbox({ images: images.map((img) => `${BASE_URL}${img}`), index });
+  const closeLightbox = () => setLightbox(null);
+  const showPrev = () => setLightbox((prev) => (prev ? { ...prev, index: (prev.index - 1 + prev.images.length) % prev.images.length } : prev));
+  const showNext = () => setLightbox((prev) => (prev ? { ...prev, index: (prev.index + 1) % prev.images.length } : prev));
 
   useEffect(() => {
     fetchPosts(1);
@@ -65,9 +73,10 @@ export default function AdminArticles() {
 
   const filteredPosts = posts.filter(
     (p) =>
-      !search ||
-      p.title.toLowerCase().includes(search.toLowerCase()) ||
-      p.vendorName.toLowerCase().includes(search.toLowerCase())
+      (eventFilter === 'Tất cả' || p.eventType === eventFilter) &&
+      (!search ||
+        p.title.toLowerCase().includes(search.toLowerCase()) ||
+        p.vendorName.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
@@ -103,6 +112,23 @@ export default function AdminArticles() {
           onChange={(e) => setSearch(e.target.value)}
           className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-cyan/40"
         />
+      </div>
+
+      {/* Filter */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {['Tất cả', 'Tiệc sinh nhật', 'Tiệc công ty', 'Sự kiện khác'].map((type) => (
+          <button
+            key={type}
+            onClick={() => setEventFilter(type)}
+            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              eventFilter === type
+                ? 'bg-cyan text-navy'
+                : 'bg-white/5 text-silver hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            {type}
+          </button>
+        ))}
       </div>
 
       {/* Posts */}
@@ -177,19 +203,23 @@ export default function AdminArticles() {
                     {post.images.length > 0 && (
                       <div className="flex gap-2 mt-3">
                         {post.images.slice(0, 4).map((img, i) => (
-                          <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0">
+                          <button
+                            key={i}
+                            onClick={() => openLightbox(post.images, i)}
+                            className="relative w-24 h-20 rounded-lg overflow-hidden shrink-0 border border-white/10 hover:border-cyan/40 transition-colors"
+                          >
                             <img
                               src={`${BASE_URL}${img}`}
                               alt=""
                               className="w-full h-full object-cover"
-                              onError={(e) => { (e.target as HTMLImageElement).closest('div')!.style.display = 'none'; }}
+                              onError={(e) => { (e.target as HTMLImageElement).closest('button')!.style.display = 'none'; }}
                             />
                             {i === 3 && post.images.length > 4 && (
                               <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                                 <span className="text-white text-xs font-bold">+{post.images.length - 4}</span>
                               </div>
                             )}
-                          </div>
+                          </button>
                         ))}
                       </div>
                     )}
@@ -222,6 +252,16 @@ export default function AdminArticles() {
             </div>
           )}
         </>
+      )}
+
+      {lightbox && (
+        <ImageLightbox
+          images={lightbox.images}
+          index={lightbox.index}
+          onClose={closeLightbox}
+          onPrev={showPrev}
+          onNext={showNext}
+        />
       )}
     </div>
   );

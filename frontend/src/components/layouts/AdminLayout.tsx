@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { Shield, Settings, Users, FileText, Wallet, LogOut, Bell, Menu, X, CheckCircle } from 'lucide-react';
+import { Shield, Settings, Users, FileText, Wallet, LogOut, Menu, X, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { NotificationBell } from '../ui/NotificationBell';
 
 export function AdminLayout() {
   const { user, logout } = useAuthStore();
@@ -151,10 +152,7 @@ export function AdminLayout() {
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="p-2 text-silver hover:text-cyan hover:bg-white/5 rounded-full transition-colors relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-cyan rounded-full" />
-            </button>
+            <NotificationBell />
 
             {user && (
               <div className="relative">

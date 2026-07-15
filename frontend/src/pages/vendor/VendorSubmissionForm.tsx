@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, Loader, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { uploadToCloudinary, optimizeCloudinaryUrl } from '../../services/cloudinary';
 import api from '../../services/api';
 
@@ -33,6 +33,8 @@ const extractFileName = (url: string): string => {
 export function VendorSubmissionForm() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isViewMode = searchParams.get('mode') === 'view';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const licenseInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,7 +69,7 @@ export function VendorSubmissionForm() {
   useEffect(() => {
     const loadVendorStatus = async () => {
       try {
-        const response = await api.get('/vendor/info');
+        const response = await api.get('/vendor/registration/info');
         if (response.data?.vendor) {
           const vendor = response.data.vendor;
           setVendorStatus({
@@ -299,9 +301,22 @@ export function VendorSubmissionForm() {
           className="space-y-8"
         >
           {/* Header */}
-          <div>
-            <h1 className="font-display text-4xl text-white mb-2">Hoàn Thành Hồ Sơ Doanh Nghiệp</h1>
-            <p className="text-silver/60">Cung cấp thông tin doanh nghiệp của bạn để chúng tôi xem xét và phê duyệt</p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="font-display text-4xl text-white mb-2">
+                {isViewMode ? 'Thông Tin Doanh Nghiệp' : 'Hoàn Thành Hồ Sơ Doanh Nghiệp'}
+              </h1>
+              <p className="text-silver/60">
+                {isViewMode ? 'Xem thông tin doanh nghiệp của bạn' : 'Cung cấp thông tin doanh nghiệp của bạn để chúng tôi xem xét và phê duyệt'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/vendor/registration')}
+              className="px-4 py-2 text-sm font-semibold rounded-lg transition-colors bg-gradient-to-r from-cyan to-cyan/70 text-navy"
+            >
+              ← Quay Lại
+            </button>
           </div>
 
           {/* Status Indicator */}
@@ -355,13 +370,13 @@ export function VendorSubmissionForm() {
             <div className="glass-panel p-6 rounded-2xl">
               <label className="block text-white font-semibold mb-4">Logo Doanh Nghiệp (Tùy chọn)</label>
               <div
-                className="border-2 border-dashed border-cyan/30 rounded-lg p-6 text-center cursor-pointer hover:border-cyan/60 transition-colors"
-                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed border-cyan/30 rounded-lg p-6 text-center ${isViewMode ? '' : 'cursor-pointer hover:border-cyan/60'} transition-colors`}
+                onClick={() => { if (!isViewMode) fileInputRef.current?.click(); }}
               >
                 {formData.avatar ? (
                   <div className="flex flex-col items-center">
                     <img src={formData.avatar} alt="Preview" className="w-24 h-24 rounded-lg mb-4 object-cover" />
-                    <p className="text-cyan text-sm">Nhấn để thay đổi</p>
+                    {!isViewMode && <p className="text-cyan text-sm">Nhấn để thay đổi</p>}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center">
@@ -376,7 +391,7 @@ export function VendorSubmissionForm() {
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleAvatarUpload}
-                disabled={isUploading}
+                disabled={isUploading || isViewMode}
                 className="hidden"
               />
               {uploadError && <p className="text-red-400 text-sm mt-2">{uploadError}</p>}
@@ -391,7 +406,8 @@ export function VendorSubmissionForm() {
                   name="companyName"
                   value={formData.companyName}
                   onChange={handleInputChange}
-                  className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
+                  disabled={isViewMode}
+                  className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan disabled:opacity-60 disabled:cursor-not-allowed"
                   placeholder="VD: ABC Event Company"
                 />
                 {formErrors.companyName && <p className="text-red-400 text-sm mt-2">{formErrors.companyName}</p>}
@@ -404,7 +420,8 @@ export function VendorSubmissionForm() {
                   name="taxId"
                   value={formData.taxId}
                   onChange={handleInputChange}
-                  className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
+                  disabled={isViewMode}
+                  className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan disabled:opacity-60 disabled:cursor-not-allowed"
                   placeholder="VD: 0123456789"
                 />
                 {formErrors.taxId && <p className="text-red-400 text-sm mt-2">{formErrors.taxId}</p>}
@@ -417,7 +434,8 @@ export function VendorSubmissionForm() {
                   name="companyAddress"
                   value={formData.companyAddress}
                   onChange={handleInputChange}
-                  className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
+                  disabled={isViewMode}
+                  className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan disabled:opacity-60 disabled:cursor-not-allowed"
                   placeholder="VD: 123 Đường ABC, Quận 1, TP HCM"
                 />
                 {formErrors.companyAddress && <p className="text-red-400 text-sm mt-2">{formErrors.companyAddress}</p>}
@@ -426,25 +444,27 @@ export function VendorSubmissionForm() {
               <div className="grid grid-cols-2 gap-4">
                 <label className="block">
                   <span className="text-white font-semibold block mb-2">Điện Thoại</span>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
-                  />
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      disabled={isViewMode}
+                      className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan disabled:opacity-60 disabled:cursor-not-allowed"
+                    />
                   {formErrors.phone && <p className="text-red-400 text-sm mt-2">{formErrors.phone}</p>}
                 </label>
 
                 <label className="block">
                   <span className="text-white font-semibold block mb-2">Email</span>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
-                  />
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      disabled={isViewMode}
+                      className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan disabled:opacity-60 disabled:cursor-not-allowed"
+                    />
                   {formErrors.email && <p className="text-red-400 text-sm mt-2">{formErrors.email}</p>}
                 </label>
               </div>
@@ -456,7 +476,8 @@ export function VendorSubmissionForm() {
                   name="website"
                   value={formData.website}
                   onChange={handleInputChange}
-                  className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
+                  disabled={isViewMode}
+                  className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan disabled:opacity-60 disabled:cursor-not-allowed"
                   placeholder="https://example.com"
                 />
               </label>
@@ -464,40 +485,43 @@ export function VendorSubmissionForm() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label className="block">
                   <span className="text-white font-semibold block mb-2">Tên Chủ Tài Khoản (Ngân Hàng)</span>
-                  <input
-                    type="text"
-                    name="accountHolderName"
-                    value={(formData as any).accountHolderName || ''}
-                    onChange={handleInputChange}
-                    className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
-                    placeholder="VD: CÔNG TY TNHH ABC"
-                  />
+                <input
+                      type="text"
+                      name="accountHolderName"
+                      value={(formData as any).accountHolderName || ''}
+                      onChange={handleInputChange}
+                      disabled={isViewMode}
+                      className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan disabled:opacity-60 disabled:cursor-not-allowed"
+                      placeholder="VD: CÔNG TY TNHH ABC"
+                    />
                   {formErrors.accountHolderName && <p className="text-red-400 text-sm mt-2">{formErrors.accountHolderName}</p>}
                 </label>
 
                 <label className="block">
                   <span className="text-white font-semibold block mb-2">Số Tài Khoản</span>
-                  <input
-                    type="text"
-                    name="accountNumber"
-                    value={(formData as any).accountNumber || ''}
-                    onChange={handleInputChange}
-                    className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
-                    placeholder="VD: 1029384756"
-                  />
+                <input
+                      type="text"
+                      name="accountNumber"
+                      value={(formData as any).accountNumber || ''}
+                      onChange={handleInputChange}
+                      disabled={isViewMode}
+                      className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan disabled:opacity-60 disabled:cursor-not-allowed"
+                      placeholder="VD: 1029384756"
+                    />
                   {formErrors.accountNumber && <p className="text-red-400 text-sm mt-2">{formErrors.accountNumber}</p>}
                 </label>
 
                 <label className="block">
                   <span className="text-white font-semibold block mb-2">Tên Ngân Hàng</span>
-                  <input
-                    type="text"
-                    name="bankName"
-                    value={(formData as any).bankName || ''}
-                    onChange={handleInputChange}
-                    className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan"
-                    placeholder="VD: Vietcombank"
-                  />
+                <input
+                      type="text"
+                      name="bankName"
+                      value={(formData as any).bankName || ''}
+                      onChange={handleInputChange}
+                      disabled={isViewMode}
+                      className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan disabled:opacity-60 disabled:cursor-not-allowed"
+                      placeholder="VD: Vietcombank"
+                    />
                   {formErrors.bankName && <p className="text-red-400 text-sm mt-2">{formErrors.bankName}</p>}
                 </label>
               </div>
@@ -510,8 +534,8 @@ export function VendorSubmissionForm() {
                 Hỗ trợ PDF, JPG, PNG, WEBP và có thể tải nhiều tệp cùng lúc, tối đa 20MB/tệp.
               </p>
               <div
-                className="border-2 border-dashed border-cyan/30 rounded-lg p-6 text-center cursor-pointer hover:border-cyan/60 transition-colors"
-                onClick={() => licenseInputRef.current?.click()}
+                className={`border-2 border-dashed border-cyan/30 rounded-lg p-6 text-center ${isViewMode ? '' : 'cursor-pointer hover:border-cyan/60'} transition-colors`}
+                onClick={() => { if (!isViewMode) licenseInputRef.current?.click(); }}
               >
                 {licenseFiles.length > 0 ? (
                   <div className="flex flex-col items-center">
@@ -533,7 +557,7 @@ export function VendorSubmissionForm() {
                 accept="image/jpeg,image/png,image/webp,application/pdf,.pdf"
                 multiple
                 onChange={handleLicenseUpload}
-                disabled={isUploading}
+                disabled={isUploading || isViewMode}
                 className="hidden"
               />
               {licenseFiles.length > 0 && (
@@ -546,21 +570,23 @@ export function VendorSubmissionForm() {
                           Xem tài liệu
                         </a>
                       </div>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setLicenseFiles(prev => prev.filter((_, currentIndex) => currentIndex !== index));
-                          setFormData(prev => ({
-                            ...prev,
-                            businessLicense: prev.businessLicense.filter((url) => url !== file.url)
-                          }));
-                        }}
-                        className="text-silver/60 hover:text-white transition-colors"
-                        aria-label={`Xóa file ${file.name}`}
-                      >
-                        <XCircle className="w-5 h-5" />
-                      </button>
+                      {!isViewMode && (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setLicenseFiles(prev => prev.filter((_, currentIndex) => currentIndex !== index));
+                            setFormData(prev => ({
+                              ...prev,
+                              businessLicense: prev.businessLicense.filter((url) => url !== file.url)
+                            }));
+                          }}
+                          className="text-silver/60 hover:text-white transition-colors"
+                          aria-label={`Xóa file ${file.name}`}
+                        >
+                          <XCircle className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -575,8 +601,9 @@ export function VendorSubmissionForm() {
                   name="bio"
                   value={formData.bio}
                   onChange={handleInputChange}
+                  disabled={isViewMode}
                   rows={4}
-                  className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan resize-none"
+                  className="w-full bg-white/5 text-white px-4 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan resize-none disabled:opacity-60 disabled:cursor-not-allowed"
                   placeholder="Mô tả về doanh nghiệp, kinh nghiệm, chuyên môn..."
                 />
               </label>
@@ -592,29 +619,30 @@ export function VendorSubmissionForm() {
               </div>
             )}
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isSubmitting || isUploading}
-              className={`w-full py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
-                isSubmitting || isUploading
-                  ? 'bg-gray-500/20 text-gray-400 cursor-not-allowed border border-gray-500/30'
-                  : 'bg-gradient-to-r from-cyan to-cyan/70 text-navy hover:shadow-lg hover:shadow-cyan/30 disabled:opacity-50 disabled:cursor-not-allowed'
-              }`}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader className="w-5 h-5 animate-spin" />
-                  Đang gửi...
-                </>
-              ) : vendorStatus?.verificationStatus === 'pending' ? (
-                'Cập Nhật Thông Tin'
-              ) : vendorStatus?.verificationStatus === 'rejected' ? (
-                'Gửi Lại Hồ Sơ'
-              ) : (
-                'Gửi Thông Tin Doanh Nghiệp'
-              )}
-            </button>
+            {!isViewMode && (
+              <button
+                type="submit"
+                disabled={isSubmitting || isUploading}
+                className={`w-full py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
+                  isSubmitting || isUploading
+                    ? 'bg-gray-500/20 text-gray-400 cursor-not-allowed border border-gray-500/30'
+                    : 'bg-gradient-to-r from-cyan to-cyan/70 text-navy hover:shadow-lg hover:shadow-cyan/30 disabled:opacity-50 disabled:cursor-not-allowed'
+                }`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader className="w-5 h-5 animate-spin" />
+                    Đang gửi...
+                  </>
+                ) : vendorStatus?.verificationStatus === 'pending' ? (
+                  'Cập Nhật Thông Tin'
+                ) : vendorStatus?.verificationStatus === 'rejected' ? (
+                  'Gửi Lại Hồ Sơ'
+                ) : (
+                  'Gửi Thông Tin Doanh Nghiệp'
+                )}
+              </button>
+            )}
           </form>
         </motion.div>
       </div>

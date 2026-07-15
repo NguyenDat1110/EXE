@@ -11,6 +11,27 @@ import { AuthRequest } from '../middleware/auth.middleware';
 import { createNotification } from './notification.controller';
 import { sendBookingAcceptedEmail, sendBookingDeclinedEmail, sendDepositConfirmedEmail, sendNewBookingRequestEmail } from '../services/email.service';
 
+const DIACRITIC_MAP: Record<string, string> = {
+  a: '[aàáảãạăằắẳẵặâầấẩẫậ]',
+  A: '[AÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬ]',
+  d: '[dđ]',
+  D: '[DĐ]',
+  e: '[eèéẻẽẹêềếểễệ]',
+  E: '[EÈÉẺẼẸÊỀẾỂỄỆ]',
+  i: '[iìíỉĩị]',
+  I: '[IÌÍỈĨỊ]',
+  o: '[oòóỏõọôồốổỗộơờớởỡợ]',
+  O: '[OÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢ]',
+  u: '[uùúủũụưừứửữự]',
+  U: '[UÙÚỦŨỤƯỪỨỬỮỰ]',
+  y: '[yỳýỷỹỵ]',
+  Y: '[YỲÝỶỸỴ]',
+};
+
+const toDiacriticInsensitiveRegex = (str: string): string => {
+  return str.split('').map(ch => DIACRITIC_MAP[ch] || ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('');
+};
+
 const toObjectId = (value: unknown): Types.ObjectId | null => {
   if (!value) return null;
   if (value instanceof Types.ObjectId) return value;
@@ -414,12 +435,52 @@ export const getVendorBookings = async (req: AuthRequest, res: Response): Promis
       filters.status = String(req.query.status);
     }
 
-    const bookings = await Booking.find(filters)
-      .sort({ createdAt: -1 })
-      .populate('packageId boothId customerId')
-      .lean();
+    if (req.query.dateFrom || req.query.dateTo) {
+      filters.eventDate = {} as any;
+      if (req.query.dateFrom) {
+        (filters.eventDate as any).$gte = new Date(String(req.query.dateFrom));
+      }
+      if (req.query.dateTo) {
+        const endDate = new Date(String(req.query.dateTo));
+        endDate.setHours(23, 59, 59, 999);
+        (filters.eventDate as any).$lte = endDate;
+      }
+    }
 
-    res.status(200).json({ bookings: bookings.map(formatBooking) });
+    if (req.query.search) {
+      const searchStr = String(req.query.search);
+      const searchPattern = toDiacriticInsensitiveRegex(searchStr);
+      const userDocs = await User.find({
+        $or: [
+          { name: { $regex: searchPattern, $options: 'i' } },
+          { phone: { $regex: searchPattern, $options: 'i' } }
+        ]
+      }).select('_id').lean();
+      const userIds = userDocs.map(u => u._id);
+      filters.customerId = { $in: userIds };
+    }
+
+    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10));
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '5'), 10)));
+    const skip = (page - 1) * limit;
+
+    const [bookings, total] = await Promise.all([
+      Booking.find(filters)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('packageId boothId customerId')
+        .lean(),
+      Booking.countDocuments(filters)
+    ]);
+
+    res.status(200).json({
+      bookings: bookings.map(formatBooking),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
   } catch (error) {
     console.error('Get vendor bookings error:', error);
     res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });

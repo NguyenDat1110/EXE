@@ -2,6 +2,8 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { Post } from '../models/post.model';
 import { Vendor } from '../models/vendor.model';
+import { User } from '../models/user.model';
+import { createNotification } from './notification.controller';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -69,6 +71,21 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
       eventType,
       images: imageUrls,
     });
+
+    // Notify all admins about new post
+    try {
+      const admins = await User.find({ role: 'admin' }).select('_id');
+      for (const admin of admins) {
+        await createNotification(
+          admin._id,
+          'new_vendor_post',
+          'Bài viết mới từ vendor',
+          `${vendor.companyName || 'Vendor'} đã đăng bài viết mới: "${title}"`
+        );
+      }
+    } catch (_err) {
+      // non-fatal
+    }
 
     res.status(201).json({ message: 'Đăng bài thành công', post });
   } catch (err) {
@@ -200,10 +217,37 @@ export const updatePost = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const { title, content, eventType } = req.body;
+    const { title, content, eventType, keepImages } = req.body;
     if (title) post.title = title;
     if (content) post.content = content;
     if (eventType !== undefined) post.eventType = eventType;
+
+    let kept: string[] = [];
+    try {
+      kept = keepImages ? JSON.parse(keepImages) : [];
+    } catch {
+      kept = [];
+    }
+    kept = kept.filter(Boolean);
+
+    const newFiles = req.files as Express.Multer.File[];
+    const newUrls = newFiles
+      ? newFiles.map((f) => `/uploads/posts/${f.filename}`)
+      : [];
+
+    const finalImages = [...kept, ...newUrls];
+
+    if (finalImages.length > 0) {
+      const oldImages = post.images || [];
+      const removed = oldImages.filter((img) => !kept.includes(img));
+      for (const imgPath of removed) {
+        const fullPath = path.resolve(process.cwd(), imgPath.replace(/^\//, ''));
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+      }
+      post.images = finalImages;
+    }
 
     await post.save();
     res.json({ message: 'Cập nhật bài viết thành công', post });

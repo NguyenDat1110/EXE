@@ -210,10 +210,10 @@ export function VendorSubmissionStatus() {
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => navigate('/vendor/dashboard')}
+                  onClick={() => navigate('/vendor/registration/form?mode=view')}
                   className="flex-1 px-6 py-3 bg-emerald-500/20 text-emerald-300 font-semibold rounded-lg border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors"
                 >
-                  Vào Dashboard
+                  Xem Thông Tin
                 </button>
                 <button
                   onClick={() => navigate('/vendor/registration/form')}

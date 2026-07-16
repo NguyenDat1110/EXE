@@ -51,6 +51,12 @@ export const createPost = async (formData: FormData): Promise<{ post: Post }> =>
   return res.data;
 };
 
+// Vendor cập nhật bài viết (có upload ảnh)
+export const updatePost = async (postId: string, formData: FormData): Promise<{ post: Post }> => {
+  const res = await api.patch(`/posts/${postId}`, formData);
+  return res.data;
+};
+
 // Vendor xóa bài viết
 export const deletePost = async (postId: string): Promise<void> => {
   await api.delete(`/posts/${postId}`);

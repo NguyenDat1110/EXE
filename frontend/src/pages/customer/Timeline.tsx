@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2, Heart, Calendar, Search, Filter, X, ChevronLeft, ChevronRight, ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getTimelinePosts, Post } from '../../services/postApi';
+import { ImageLightbox } from '../../components/ui/ImageLightbox';
 
 const BASE_URL = 'http://localhost:5000';
 
@@ -76,6 +77,7 @@ export default function Timeline() {
       setLoading(false);
       setLoadingMore(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Initial load
@@ -139,11 +141,10 @@ export default function Timeline() {
             <button
               key={type}
               onClick={() => setFilterType(type)}
-              className={`shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                filterType === type
+              className={`shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${filterType === type
                   ? 'bg-cyan text-navy shadow-[0_0_15px_rgba(0,212,255,0.3)]'
                   : 'bg-white/5 border border-white/10 text-silver hover:bg-white/10 hover:text-white'
-              }`}
+                }`}
             >
               {type}
             </button>
@@ -157,7 +158,7 @@ export default function Timeline() {
           <Loader2 className="w-10 h-10 animate-spin text-cyan" />
         </div>
       ) : posts.length === 0 ? (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           className="text-center py-24 glass-panel rounded-3xl max-w-2xl mx-auto"
         >
@@ -168,11 +169,11 @@ export default function Timeline() {
       ) : (
         <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6">
           {posts.map((post, idx) => (
-            <motion.article 
+            <motion.article
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: (idx % 10) * 0.05 }}
-              key={post._id} 
+              key={post._id}
               className="break-inside-avoid bg-white/[0.02] border border-white/10 rounded-3xl overflow-hidden hover:border-cyan/30 transition-all duration-300 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)] group"
             >
               {/* Post Header */}
@@ -212,18 +213,16 @@ export default function Timeline() {
               {/* Post Images (Masonry styled inside card) */}
               {post.images.length > 0 && (
                 <div className="px-5 pb-5">
-                  <div className={`grid gap-2 rounded-2xl overflow-hidden ${
-                    post.images.length === 1 ? 'grid-cols-1' :
-                    post.images.length === 2 ? 'grid-cols-2 h-48' :
-                    post.images.length >= 3 ? 'grid-cols-2 h-64' : ''
-                  }`}>
+                  <div className={`grid gap-2 rounded-2xl overflow-hidden ${post.images.length === 1 ? 'grid-cols-1' :
+                      post.images.length === 2 ? 'grid-cols-2 h-48' :
+                        post.images.length >= 3 ? 'grid-cols-2 h-64' : ''
+                    }`}>
                     {post.images.slice(0, 3).map((img, i) => (
                       <div
                         key={i}
                         onClick={() => openLightbox(post.images, i)}
-                        className={`relative cursor-zoom-in group/img bg-slate-custom ${
-                          post.images.length >= 3 && i === 0 ? 'row-span-2' : ''
-                        }`}
+                        className={`relative cursor-zoom-in group/img bg-slate-custom ${post.images.length >= 3 && i === 0 ? 'row-span-2' : ''
+                          }`}
                       >
                         <img
                           src={`${BASE_URL}${img}`}
@@ -232,7 +231,7 @@ export default function Timeline() {
                           onError={(e) => { (e.target as HTMLImageElement).closest('div')!.style.display = 'none'; }}
                         />
                         <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition-colors" />
-                        
+
                         {i === 2 && post.images.length > 3 && (
                           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-white">
                             <ImageIcon className="w-6 h-6 mb-1 opacity-70" />
@@ -249,9 +248,8 @@ export default function Timeline() {
               <div className="flex items-center gap-4 px-5 py-4 border-t border-white/5 bg-white/[0.01]">
                 <button
                   onClick={() => toggleLike(post._id)}
-                  className={`flex items-center gap-2 text-sm font-semibold transition-all duration-300 ${
-                    likedPosts.has(post._id) ? 'text-red-400 drop-shadow-[0_0_10px_rgba(248,113,113,0.5)]' : 'text-silver/60 hover:text-red-400 hover:bg-red-400/10 px-3 py-1.5 -ml-3 rounded-full'
-                  }`}
+                  className={`flex items-center gap-2 text-sm font-semibold transition-all duration-300 ${likedPosts.has(post._id) ? 'text-red-400 drop-shadow-[0_0_10px_rgba(248,113,113,0.5)]' : 'text-silver/60 hover:text-red-400 hover:bg-red-400/10 px-3 py-1.5 -ml-3 rounded-full'
+                    }`}
                 >
                   <Heart className={`w-5 h-5 ${likedPosts.has(post._id) ? 'fill-current scale-110' : 'scale-100'}`} />
                   <span>{post.likes + (likedPosts.has(post._id) ? 1 : 0)}</span>

@@ -14,6 +14,7 @@ export interface IPackage extends Document {
 
 export interface IVendor extends Document {
   userId: Types.ObjectId;
+  registrationId?: Types.ObjectId;
   companyName: string;
   taxId: string;
   companyAddress: string;
@@ -58,6 +59,7 @@ const packageSchema = new Schema<IPackage>(
 const vendorSchema = new Schema<IVendor>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    registrationId: { type: Schema.Types.ObjectId, ref: 'VendorRegistration' },
     companyName: { type: String, default: '' },
     taxId: { type: String, default: undefined, unique: true, sparse: true },
     companyAddress: { type: String, default: '' },

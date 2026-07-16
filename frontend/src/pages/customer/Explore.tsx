@@ -23,7 +23,7 @@ const EVENT_TYPES = [
 export default function Explore() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  
+
   const [categories, setCategories] = useState<ExploreCategoryItem[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
@@ -34,7 +34,7 @@ export default function Explore() {
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    getExploreCategories().then(data => setCategories(data || [])).catch(() => {});
+    getExploreCategories().then(data => setCategories(data || [])).catch(() => { });
   }, []);
 
   const fetchPosts = useCallback(async (pageNum = 1, replace = true, type = filterType) => {
@@ -73,7 +73,7 @@ export default function Explore() {
   return (
     <div className="max-w-[1400px] mx-auto w-full pb-20">
       <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_320px] gap-8">
-        
+
         {/* LEFT SIDEBAR (Desktop) */}
         <aside className="hidden lg:block space-y-6 sticky top-24 h-fit">
           {/* User Profile Widget */}
@@ -81,9 +81,9 @@ export default function Explore() {
             <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-cyan/20 to-purple-500/20" />
             <div className="relative z-10 flex flex-col items-center pt-6">
               <div className="w-20 h-20 rounded-full border-4 border-navy bg-slate-custom p-0.5 overflow-hidden mb-3">
-                <img 
-                  src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id}`} 
-                  alt={user?.name} 
+                <img
+                  src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id}`}
+                  alt={user?.name}
                   className="w-full h-full rounded-full object-cover"
                 />
               </div>
@@ -154,11 +154,10 @@ export default function Explore() {
               <button
                 key={type}
                 onClick={() => setFilterType(type)}
-                className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
-                  filterType === type 
-                    ? 'bg-cyan text-navy shadow-[0_0_15px_rgba(0,212,255,0.3)]' 
+                className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all ${filterType === type
+                    ? 'bg-cyan text-navy shadow-[0_0_15px_rgba(0,212,255,0.3)]'
                     : 'bg-white/5 text-silver hover:bg-white/10'
-                }`}
+                  }`}
               >
                 {type}
               </button>
@@ -180,14 +179,14 @@ export default function Explore() {
             ) : (
               <>
                 {posts.map((post) => (
-                  <EventFeedCard 
-                    key={post._id} 
-                    post={post} 
-                    onLike={toggleLike} 
-                    isLiked={likedPosts.has(post._id)} 
+                  <EventFeedCard
+                    key={post._id}
+                    post={post}
+                    onLike={toggleLike}
+                    isLiked={likedPosts.has(post._id)}
                   />
                 ))}
-                
+
                 {page < totalPages && (
                   <button
                     onClick={() => fetchPosts(page + 1, false)}
@@ -220,8 +219,8 @@ export default function Explore() {
 
           {/* Call to Action Banner */}
           <div className="relative rounded-2xl overflow-hidden border border-cyan/30 p-6 flex flex-col justify-end min-h-[200px] group cursor-pointer" onClick={() => navigate('/explore/business')}>
-            <img 
-              src="https://images.unsplash.com/photo-1511578314322-379afb476865?w=500&q=80&auto=format&fit=crop" 
+            <img
+              src="https://images.unsplash.com/photo-1511578314322-379afb476865?w=500&q=80&auto=format&fit=crop"
               alt="Promo"
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
             />
@@ -232,7 +231,7 @@ export default function Explore() {
               <p className="text-xs text-silver/80 flex items-center gap-1 mt-2 font-semibold">Khám phá <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" /></p>
             </div>
           </div>
-          
+
           <div className="text-xs text-silver/40 text-center px-4">
             &copy; 2026 ClickPick. Nền tảng kết nối sự kiện hàng đầu.
           </div>

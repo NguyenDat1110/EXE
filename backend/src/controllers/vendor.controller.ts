@@ -3,8 +3,11 @@ import { mkdir, writeFile } from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { Vendor } from '../models/vendor.model';
+import { VendorRegistration } from '../models/vendor-registration.model';
 import { Booking } from '../models/booking.model';
+import { User } from '../models/user.model';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { createNotification } from './notification.controller';
 
 const normalizeBusinessLicense = (value: unknown): string[] => {
   if (Array.isArray(value)) {
@@ -23,7 +26,6 @@ const normalizeBusinessLicense = (value: unknown): string[] => {
         return parsed.map((item) => String(item).trim()).filter(Boolean);
       }
     } catch {
-      // Treat plain string values as a single uploaded document URL.
     }
 
     return trimmed.split(',').map((item) => item.trim()).filter(Boolean);
@@ -95,7 +97,21 @@ export const uploadVendorLicense = async (req: AuthRequest, res: Response): Prom
   }
 };
 
-// UC-09: Vendor submit thông tin doanh nghiệp để admin duyệt
+const SHARED_FIELDS = [
+  'companyName', 'taxId', 'accountHolderName', 'accountNumber', 'bankName',
+  'businessLicense', 'businessLicenseNames',
+] as const;
+
+function pickShared(data: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const field of SHARED_FIELDS) {
+    if (field in data) {
+      result[field] = data[field];
+    }
+  }
+  return result;
+}
+
 export const submitVendorInfo = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user) {
@@ -106,7 +122,6 @@ export const submitVendorInfo = async (req: AuthRequest, res: Response): Promise
     const { companyName, taxId, companyAddress, businessLicense, businessLicenseNames, phone, email, website, bio, avatar,
       accountHolderName, accountNumber, bankName } = req.body;
 
-    // Validate required fields (businessLicense is optional for testing)
     const fieldErrors: Record<string, string> = {};
     if (!companyName || !String(companyName).trim()) fieldErrors.companyName = 'Tên công ty là bắt buộc.';
     if (!taxId || !String(taxId).trim()) fieldErrors.taxId = 'Mã số thuế là bắt buộc.';
@@ -115,7 +130,6 @@ export const submitVendorInfo = async (req: AuthRequest, res: Response): Promise
     if (!accountNumber || !String(accountNumber).trim()) fieldErrors.accountNumber = 'Số tài khoản là bắt buộc.';
     if (!bankName || !String(bankName).trim()) fieldErrors.bankName = 'Tên ngân hàng là bắt buộc.';
 
-    // Phone and email validation
     if (!phone || !String(phone).trim()) {
       fieldErrors.phone = 'Số điện thoại là bắt buộc.';
     } else {
@@ -135,82 +149,88 @@ export const submitVendorInfo = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    // Find vendor by userId; if none exists, create a new vendor record
-    let vendor = await Vendor.findOne({ userId: req.user.id });
-    if (!vendor) {
-      vendor = await Vendor.create({
-        userId: req.user.id,
-        companyName: '',
-        taxId: undefined,
-        companyAddress: '',
-        businessLicense: [],
-        businessLicenseNames: [],
-        phone: phone || '',
-        email: email?.toLowerCase() || req.user.email || '',
-        website: '',
-        bio: '',
-        avatar: avatar || '',
-        accountHolderName: accountHolderName || '',
-        accountNumber: accountNumber || '',
-        bankName: bankName || '',
-        verificationStatus: 'pending',
-        isVerified: false,
-        subscriptionStatus: 'inactive',
-        packages: []
-      });
+    // Save to VendorRegistration
+    const normalizedLicense = normalizeBusinessLicense(businessLicense);
+    const normalizedLicenseNames = normalizeBusinessLicense(businessLicenseNames);
+
+    let registration = await VendorRegistration.findOne({ userId: req.user.id });
+    if (!registration) {
+      registration = new VendorRegistration({ userId: req.user.id });
     }
 
-    // Preserve old identity fields to detect changes
-    const oldCompanyName = vendor.companyName || '';
-    const oldTaxId = vendor.taxId || '';
-    const oldCompanyAddress = vendor.companyAddress || '';
-    const oldBusinessLicense = normalizeBusinessLicense(vendor.businessLicense);
-    const nextBusinessLicense = normalizeBusinessLicense(businessLicense);
-    const nextBusinessLicenseNames = normalizeBusinessLicense(businessLicenseNames);
+    registration.companyName = companyName.trim();
+    registration.taxId = taxId.trim();
+    registration.companyAddress = companyAddress.trim();
+    registration.businessLicense = normalizedLicense;
+    registration.businessLicenseNames = normalizedLicenseNames;
+    registration.phone = phone?.trim() || '';
+    registration.email = email?.trim().toLowerCase() || '';
+    registration.website = website?.trim() || '';
+    registration.bio = bio?.trim() || '';
+    registration.avatar = avatar || '';
+    registration.accountHolderName = accountHolderName?.trim() || '';
+    registration.accountNumber = accountNumber?.trim() || '';
+    registration.bankName = bankName?.trim() || '';
+    registration.verificationStatus = 'pending';
 
-    // Update vendor info
+    await registration.save();
+
+    // Sync shared fields to Vendor (create if not exists)
+    let vendor = await Vendor.findOne({ userId: req.user.id });
+    if (!vendor) {
+      vendor = new Vendor({ userId: req.user.id });
+    }
+
     vendor.companyName = companyName.trim();
     vendor.taxId = taxId.trim();
+    vendor.businessLicense = normalizedLicense;
+    vendor.businessLicenseNames = normalizedLicenseNames;
+    vendor.accountHolderName = accountHolderName?.trim() || '';
+    vendor.accountNumber = accountNumber?.trim() || '';
+    vendor.bankName = bankName?.trim() || '';
+    vendor.registrationId = registration._id;
+
     vendor.companyAddress = companyAddress.trim();
-    vendor.businessLicense = nextBusinessLicense.length > 0 ? nextBusinessLicense : oldBusinessLicense;
-    vendor.businessLicenseNames = nextBusinessLicenseNames.length > 0 ? nextBusinessLicenseNames : vendor.businessLicenseNames || [];
-    vendor.phone = phone?.trim() || vendor.phone;
-    vendor.email = email?.trim() || vendor.email;
+    vendor.phone = phone?.trim() || '';
+    vendor.email = email?.trim().toLowerCase() || '';
     vendor.website = website?.trim() || '';
     vendor.bio = bio?.trim() || '';
     vendor.avatar = avatar || '';
-    vendor.accountHolderName = accountHolderName?.trim() || vendor.accountHolderName || '';
-    vendor.accountNumber = accountNumber?.trim() || vendor.accountNumber || '';
-    vendor.bankName = bankName?.trim() || vendor.bankName || '';
 
-    // Only mark as pending if core identity fields changed that require re-verification
-    const identityChanged = (
-      (companyName && companyName.trim() !== oldCompanyName) ||
-      (taxId && taxId.trim() !== oldTaxId) ||
-      (companyAddress && companyAddress.trim() !== oldCompanyAddress) ||
-      JSON.stringify(nextBusinessLicense) !== JSON.stringify(oldBusinessLicense)
-    );
-
-    if (identityChanged) {
-      vendor.verificationStatus = 'pending';
-    }
+    vendor.verificationStatus = 'pending';
+    vendor.isVerified = false;
 
     await vendor.save();
+
+    // Notify all admins about new registration
+    try {
+      const admins = await User.find({ role: 'admin' }).select('_id');
+      for (const admin of admins) {
+        await createNotification(
+          admin._id,
+          'new_vendor_registration',
+          'Yêu cầu duyệt vendor mới',
+          `${companyName.trim()} đã gửi yêu cầu đăng ký doanh nghiệp.`
+        );
+      }
+    } catch (_err) {
+      // non-fatal
+    }
 
     res.status(200).json({
       message: 'Gửi thông tin doanh nghiệp thành công! Chúng tôi sẽ xem xét trong 2-3 ngày làm việc.',
       vendor: {
-        id: vendor._id,
-        companyName: vendor.companyName,
-        verificationStatus: vendor.verificationStatus,
-        taxId: vendor.taxId,
-        companyAddress: vendor.companyAddress,
-        businessLicense: vendor.businessLicense,
-        businessLicenseNames: vendor.businessLicenseNames || [],
-        accountHolderName: vendor.accountHolderName || '',
-        accountNumber: vendor.accountNumber || '',
-        bankName: vendor.bankName || ''
-      }
+        id: registration._id,
+        companyName: registration.companyName,
+        verificationStatus: registration.verificationStatus,
+        taxId: registration.taxId,
+        companyAddress: registration.companyAddress,
+        businessLicense: registration.businessLicense,
+        businessLicenseNames: registration.businessLicenseNames || [],
+        accountHolderName: registration.accountHolderName || '',
+        accountNumber: registration.accountNumber || '',
+        bankName: registration.bankName || '',
+      },
     });
   } catch (error) {
     console.error('Submit vendor info error:', error);
@@ -218,7 +238,71 @@ export const submitVendorInfo = async (req: AuthRequest, res: Response): Promise
   }
 };
 
-// Get vendor info
+export const getVendorRegistrationInfo = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Không được phép truy cập.' });
+      return;
+    }
+
+    const registration = await VendorRegistration.findOne({ userId: req.user.id });
+    if (!registration) {
+      res.status(404).json({ message: 'Không tìm thấy hồ sơ đăng ký.' });
+      return;
+    }
+
+    res.status(200).json({ vendor: registration });
+  } catch (error) {
+    console.error('Get vendor registration info error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
+  }
+};
+
+export const updateVendorProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Không được phép truy cập.' });
+      return;
+    }
+
+    const { companyAddress, phone, email, website, bio, avatar } = req.body;
+
+    let vendor = await Vendor.findOne({ userId: req.user.id });
+    if (!vendor) {
+      res.status(404).json({ message: 'Không tìm thấy hồ sơ vendor.' });
+      return;
+    }
+
+    if (companyAddress !== undefined) vendor.companyAddress = companyAddress?.trim() || '';
+    if (phone !== undefined) {
+      const digits = String(phone).replace(/\D/g, '');
+      if (digits.length !== 10) {
+        res.status(400).json({ message: 'Số điện thoại phải gồm 10 chữ số.' });
+        return;
+      }
+      vendor.phone = phone?.trim() || '';
+    }
+    if (email !== undefined) {
+      const re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\\.,;:\s@\"]+\.)+[^<>()[\]\\.,;:\s@\"]{2,})$/i;
+      if (!re.test(String(email).toLowerCase())) {
+        res.status(400).json({ message: 'Email không hợp lệ.' });
+        return;
+      }
+      vendor.email = email?.trim().toLowerCase() || '';
+    }
+    if (website !== undefined) vendor.website = website?.trim() || '';
+    if (bio !== undefined) vendor.bio = bio?.trim() || '';
+    if (avatar !== undefined) vendor.avatar = avatar || '';
+
+    await vendor.save();
+
+    res.status(200).json({ message: 'Cập nhật hồ sơ thành công', vendor });
+  } catch (error) {
+    console.error('Update vendor profile error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
+  }
+};
+
 export const getVendorInfo = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user) {
@@ -239,7 +323,6 @@ export const getVendorInfo = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
-// UC-15: Vendor block ngày bận thủ công
 export const blockDate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user) { res.status(401).json({ message: 'Không được phép.' }); return; }
@@ -270,7 +353,6 @@ export const blockDate = async (req: AuthRequest, res: Response): Promise<void> 
   }
 };
 
-// UC-16: Vendor bỏ block ngày
 export const unblockDate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user) { res.status(401).json({ message: 'Không được phép.' }); return; }
@@ -297,7 +379,6 @@ export const unblockDate = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
-// UC-17: Vendor xem thống kê
 export const getVendorStats = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user) { res.status(401).json({ message: 'Không được phép.' }); return; }

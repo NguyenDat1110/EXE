@@ -64,10 +64,9 @@ const TimelineProgress = ({ status }: { status: string }) => {
         return (
           <React.Fragment key={step.id}>
             <div className="flex flex-col items-center gap-2 relative z-10">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
-                isActive ? 'bg-cyan text-navy border-cyan shadow-[0_0_15px_rgba(0,212,255,0.4)]' : 
-                isPast ? 'bg-cyan/20 border-cyan text-cyan' : 'bg-navy border-white/20 text-white/40'
-              }`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${isActive ? 'bg-cyan text-navy border-cyan shadow-[0_0_15px_rgba(0,212,255,0.4)]' :
+                  isPast ? 'bg-cyan/20 border-cyan text-cyan' : 'bg-navy border-white/20 text-white/40'
+                }`}>
                 {isActive || isPast ? <CheckCircle2 className="w-4 h-4" /> : <span className="text-xs font-bold">{index + 1}</span>}
               </div>
               <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider absolute top-10 whitespace-nowrap ${isActive ? 'text-cyan' : 'text-silver/50'}`}>
@@ -76,7 +75,7 @@ const TimelineProgress = ({ status }: { status: string }) => {
             </div>
             {!isLast && (
               <div className="flex-1 h-0.5 mx-2 bg-white/10 relative overflow-hidden rounded-full mt-[-20px]">
-                <div 
+                <div
                   className="absolute top-0 left-0 h-full bg-cyan transition-all duration-1000 ease-out"
                   style={{ width: isActive || isPast ? '100%' : '0%' }}
                 />
@@ -198,7 +197,7 @@ export default function CustomerBookings() {
           <h1 className="text-3xl md:text-4xl font-serif italic text-white mb-2">Đơn Đặt Chỗ</h1>
           <p className="text-silver/70 text-sm md:text-base">Theo dõi tiến độ, thanh toán và quản lý các sự kiện của bạn.</p>
         </div>
-        
+
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
           <div className="glass-card px-5 py-3 rounded-2xl flex flex-col items-center justify-center min-w-[100px]">
             <span className="text-2xl font-bold text-white">{stats.total}</span>
@@ -228,9 +227,8 @@ export default function CustomerBookings() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`pb-4 text-sm font-semibold whitespace-nowrap transition-colors relative ${
-                activeTab === tab.id ? 'text-cyan' : 'text-silver/50 hover:text-white'
-              }`}
+              className={`pb-4 text-sm font-semibold whitespace-nowrap transition-colors relative ${activeTab === tab.id ? 'text-cyan' : 'text-silver/50 hover:text-white'
+                }`}
             >
               {tab.label}
               {activeTab === tab.id && (
@@ -241,6 +239,12 @@ export default function CustomerBookings() {
         </div>
       </div>
 
+      {paymentError && (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0" /> {paymentError}
+        </div>
+      )}
+
       {loading ? (
         <div className="space-y-6">
           {[1, 2].map((i) => (
@@ -248,9 +252,9 @@ export default function CustomerBookings() {
           ))}
         </div>
       ) : filteredBookings.length === 0 ? (
-        <motion.div 
-          initial={{ opacity: 0 }} 
-          animate={{ opacity: 1 }} 
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           className="rounded-3xl border border-white/5 bg-white/[0.02] p-12 text-center flex flex-col items-center justify-center min-h-[400px]"
         >
           <div className="w-24 h-24 mb-6 relative">
@@ -259,12 +263,12 @@ export default function CustomerBookings() {
           </div>
           <h3 className="text-2xl font-bold text-white mb-3">Chưa có đơn hàng nào</h3>
           <p className="text-silver/60 mb-8 max-w-md">
-            {activeTab === 'all' 
-              ? 'Bạn chưa đặt dịch vụ nào. Khám phá các gian hàng tuyệt vời và bắt đầu tổ chức sự kiện ngay!' 
+            {activeTab === 'all'
+              ? 'Bạn chưa đặt dịch vụ nào. Khám phá các gian hàng tuyệt vời và bắt đầu tổ chức sự kiện ngay!'
               : 'Không có đơn hàng nào trong trạng thái này.'}
           </p>
-          <Link 
-            to="/explore" 
+          <Link
+            to="/explore"
             className="px-8 py-3 bg-cyan text-navy font-bold rounded-full hover:bg-cyan/90 transition-all shadow-[0_0_20px_rgba(0,212,255,0.3)] flex items-center gap-2"
           >
             Khám phá ngay <ChevronRight className="w-4 h-4" />
@@ -287,19 +291,19 @@ export default function CustomerBookings() {
             if (b.status === 'completed') progressWidth = '100%';
 
             return (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                key={b._id} 
+                key={b._id}
                 className="glass-panel p-6 md:p-8 rounded-3xl flex flex-col gap-8 hover:border-cyan/30 transition-colors group"
               >
                 {/* Top header */}
                 <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/5 pb-6">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-2xl bg-slate-custom overflow-hidden border border-white/10 shrink-0">
-                      <img 
-                        src={b.vendor?.avatar || `https://api.dicebear.com/7.x/shapes/svg?seed=${b.vendor?._id}`} 
-                        alt="Vendor" 
+                      <img
+                        src={b.vendor?.avatar || `https://api.dicebear.com/7.x/shapes/svg?seed=${b.vendor?._id}`}
+                        alt="Vendor"
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -311,7 +315,7 @@ export default function CustomerBookings() {
                       <h2 className="text-xl font-bold text-white group-hover:text-cyan transition-colors">{b.vendor?.name || 'Nhà cung cấp'}</h2>
                     </div>
                   </div>
-                  
+
                   <div className="text-right">
                     <p className="text-sm text-silver/60 mb-1">Tổng tiền</p>
                     <p className="text-2xl font-bold text-white">{formatMoney(b.totalPrice || 0)}</p>
@@ -341,7 +345,7 @@ export default function CustomerBookings() {
                         <p className="text-white font-medium">{b.eventAddress || b.booth?.name || 'Địa điểm chưa rõ'}</p>
                       </div>
                     </div>
-                    
+
                     {/* Timeline Tracker */}
                     <div className="pt-6 pb-2">
                       <TimelineProgress status={b.status} />
@@ -394,7 +398,7 @@ export default function CustomerBookings() {
                           Hủy đơn
                         </button>
                       )}
-                      
+
                       {canSubmitDeposit && (
                         <button
                           disabled={isLoading}
@@ -404,7 +408,7 @@ export default function CustomerBookings() {
                           {isLoading ? 'Đang tạo link...' : 'Thanh toán cọc'}
                         </button>
                       )}
-                      
+
                       {b.status === 'vendor_completed' && (
                         <button
                           disabled={isLoading}
@@ -414,7 +418,7 @@ export default function CustomerBookings() {
                           Xác nhận hoàn thành
                         </button>
                       )}
-                      
+
                       {b.status === 'customer_completed' && (
                         <button
                           disabled={isLoading}
@@ -438,13 +442,13 @@ export default function CustomerBookings() {
                           <Star className="w-4 h-4" /> Viết đánh giá
                         </button>
                       )}
-                      
+
                       {b.status === 'completed' && b.isReviewed && (
                         <div className="w-full py-3 bg-white/5 border border-white/10 text-silver/60 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2">
                           <Star className="w-4 h-4 fill-current text-yellow-400" /> Đã đánh giá
                         </div>
                       )}
-                      
+
                       {isDepositPending && (
                         <div className="w-full py-3 text-center bg-white/5 border border-white/10 text-silver/60 rounded-xl text-xs uppercase tracking-wider font-semibold">
                           Chờ vendor xác nhận cọc
@@ -464,7 +468,7 @@ export default function CustomerBookings() {
                     </a>
                   </div>
                 )}
-                
+
                 {b.paymentStatus === 'deposit_rejected' && b.depositRejectedReason && (
                   <div className="mt-4 p-4 rounded-xl border border-red-500/20 bg-red-500/5 text-sm text-red-300">
                     <p className="font-bold mb-1 flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> Lý do từ chối biên lai:</p>
@@ -481,16 +485,16 @@ export default function CustomerBookings() {
       <AnimatePresence>
         {reviewModalBooking && (
           <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }} 
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
-              onClick={() => setReviewModalBooking(null)} 
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => setReviewModalBooking(null)}
             />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }} 
-              animate={{ opacity: 1, scale: 1, y: 0 }} 
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="relative w-full max-w-lg rounded-3xl border border-white/10 bg-surface shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden"
             >
@@ -524,9 +528,8 @@ export default function CustomerBookings() {
                           className="p-1 focus:outline-none transition-transform hover:scale-125"
                         >
                           <Star
-                            className={`w-12 h-12 transition-all duration-300 ${
-                              isFilled ? 'text-yellow-400 fill-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]' : 'text-slate-600'
-                            }`}
+                            className={`w-12 h-12 transition-all duration-300 ${isFilled ? 'text-yellow-400 fill-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]' : 'text-slate-600'
+                              }`}
                           />
                         </button>
                       );

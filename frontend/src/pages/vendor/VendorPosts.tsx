@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Image, Trash2, X, Loader2, Calendar, Edit3, CheckCircle } from 'lucide-react';
-import { createPost, getMyPosts, deletePost, Post } from '../../services/postApi';
+import { createPost, getMyPosts, deletePost, updatePost, Post } from '../../services/postApi';
+import { ImageLightbox } from '../../components/ui/ImageLightbox';
 
 const BASE_URL = 'http://localhost:5000';
 
 const EVENT_TYPES = [
   'Tiệc sinh nhật',
-  'Tiệc cưới',
-  'Hội nghị',
-  'Workshop',
-  'Lễ tốt nghiệp',
   'Tiệc công ty',
   'Sự kiện khác',
 ];
@@ -26,14 +23,22 @@ export default function VendorPosts() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
 
-  // Form state
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [eventType, setEventType] = useState('');
-  const [previewImages, setPreviewImages] = useState<string[]>([]);
+
+  const [existingImages, setExistingImages] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [newPreviews, setNewPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
+
+  const openLightbox = (images: string[], index: number) => setLightbox({ images: images.map((img) => `${BASE_URL}${img}`), index });
+  const closeLightbox = () => setLightbox(null);
+  const showPrevLightbox = () => setLightbox((prev) => (prev ? { ...prev, index: (prev.index - 1 + prev.images.length) % prev.images.length } : prev));
+  const showNextLightbox = () => setLightbox((prev) => (prev ? { ...prev, index: (prev.index + 1) % prev.images.length } : prev));
 
   useEffect(() => {
     fetchPosts();
@@ -53,26 +58,33 @@ export default function VendorPosts() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + selectedFiles.length > 10) {
+    const total = files.length + selectedFiles.length;
+    if (total > 10) {
       setError('Tối đa 10 ảnh cho mỗi bài viết');
       return;
     }
     setSelectedFiles((prev) => [...prev, ...files]);
     const previews = files.map((f) => URL.createObjectURL(f));
-    setPreviewImages((prev) => [...prev, ...previews]);
+    setNewPreviews((prev) => [...prev, ...previews]);
   };
 
-  const removeImage = (index: number) => {
+  const removeExistingImage = (index: number) => {
+    setExistingImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeNewImage = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-    setPreviewImages((prev) => prev.filter((_, i) => i !== index));
+    setNewPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const resetForm = () => {
     setTitle('');
     setContent('');
     setEventType('');
+    setExistingImages([]);
     setSelectedFiles([]);
-    setPreviewImages([]);
+    setNewPreviews([]);
+    setEditingPost(null);
     setError('');
     setShowForm(false);
   };
@@ -88,14 +100,24 @@ export default function VendorPosts() {
     setError('');
 
     try {
-      const formData = new FormData();
-      formData.append('title', title.trim());
-      formData.append('content', content.trim());
-      if (eventType) formData.append('eventType', eventType);
-      selectedFiles.forEach((file) => formData.append('images', file));
-
-      await createPost(formData);
-      setSuccess('Đăng bài thành công!');
+      if (editingPost) {
+        const formData = new FormData();
+        formData.append('title', title.trim());
+        formData.append('content', content.trim());
+        if (eventType) formData.append('eventType', eventType);
+        formData.append('keepImages', JSON.stringify(existingImages));
+        selectedFiles.forEach((file) => formData.append('images', file));
+        await updatePost(editingPost._id, formData);
+        setSuccess('Cập nhật bài viết thành công!');
+      } else {
+        const formData = new FormData();
+        formData.append('title', title.trim());
+        formData.append('content', content.trim());
+        if (eventType) formData.append('eventType', eventType);
+        selectedFiles.forEach((file) => formData.append('images', file));
+        await createPost(formData);
+        setSuccess('Đăng bài thành công!');
+      }
       resetForm();
       fetchPosts();
       setTimeout(() => setSuccess(''), 3000);
@@ -104,6 +126,17 @@ export default function VendorPosts() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEdit = (post: Post) => {
+    setEditingPost(post);
+    setTitle(post.title);
+    setContent(post.content);
+    setEventType(post.eventType || '');
+    setExistingImages(post.images || []);
+    setSelectedFiles([]);
+    setNewPreviews([]);
+    setShowForm(true);
   };
 
   const handleDelete = async (postId: string) => {
@@ -118,9 +151,10 @@ export default function VendorPosts() {
     }
   };
 
+  const totalImages = existingImages.length + selectedFiles.length;
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white mb-1">Bài Viết Của Tôi</h1>
@@ -135,7 +169,6 @@ export default function VendorPosts() {
         </button>
       </div>
 
-      {/* Toast */}
       {success && (
         <div className="flex items-center gap-2 p-3 mb-4 bg-cyan/10 border border-cyan/30 rounded-xl text-cyan text-sm">
           <CheckCircle className="w-4 h-4" />
@@ -148,14 +181,13 @@ export default function VendorPosts() {
         </div>
       )}
 
-      {/* Create Post Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-navy border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-white/10">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <Edit3 className="w-5 h-5 text-cyan" />
-                Tạo Bài Viết Mới
+                {editingPost ? 'Chỉnh Sửa Bài Viết' : 'Tạo Bài Viết Mới'}
               </h2>
               <button onClick={resetForm} className="p-2 rounded-lg hover:bg-white/5 text-silver hover:text-white transition-colors">
                 <X className="w-5 h-5" />
@@ -163,7 +195,6 @@ export default function VendorPosts() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              {/* Event Type */}
               <div>
                 <label className="block text-sm font-medium text-silver mb-2">Loại sự kiện</label>
                 <select
@@ -178,7 +209,6 @@ export default function VendorPosts() {
                 </select>
               </div>
 
-              {/* Title */}
               <div>
                 <label className="block text-sm font-medium text-silver mb-2">Tiêu đề <span className="text-red-400">*</span></label>
                 <input
@@ -191,7 +221,6 @@ export default function VendorPosts() {
                 />
               </div>
 
-              {/* Content */}
               <div>
                 <label className="block text-sm font-medium text-silver mb-2">Nội dung <span className="text-red-400">*</span></label>
                 <textarea
@@ -205,9 +234,45 @@ export default function VendorPosts() {
                 <p className="text-right text-xs text-white/30 mt-1">{content.length}/2000</p>
               </div>
 
-              {/* Image Upload */}
               <div>
-                <label className="block text-sm font-medium text-silver mb-2">Ảnh sự kiện (tối đa 10 ảnh)</label>
+                <label className="block text-sm font-medium text-silver mb-2">
+                  Ảnh sự kiện ({totalImages}/10)
+                </label>
+
+                {editingPost && existingImages.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    {existingImages.map((src, i) => (
+                      <div key={`old-${i}`} className="relative group aspect-square">
+                        <img src={`${BASE_URL}${src}`} alt="" className="w-full h-full object-cover rounded-lg" />
+                        <button
+                          type="button"
+                          onClick={() => removeExistingImage(i)}
+                          className="absolute top-1 right-1 p-1 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3 text-white" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {newPreviews.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    {newPreviews.map((src, i) => (
+                      <div key={`new-${i}`} className="relative group aspect-square">
+                        <img src={src} alt="" className="w-full h-full object-cover rounded-lg" />
+                        <button
+                          type="button"
+                          onClick={() => removeNewImage(i)}
+                          className="absolute top-1 right-1 p-1 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3 text-white" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div
                   onClick={() => fileInputRef.current?.click()}
                   className="border-2 border-dashed border-white/15 rounded-xl p-6 text-center cursor-pointer hover:border-cyan/40 hover:bg-cyan/5 transition-colors"
@@ -224,23 +289,6 @@ export default function VendorPosts() {
                   onChange={handleFileChange}
                   className="hidden"
                 />
-
-                {previewImages.length > 0 && (
-                  <div className="grid grid-cols-4 gap-2 mt-3">
-                    {previewImages.map((src, i) => (
-                      <div key={i} className="relative group aspect-square">
-                        <img src={src} alt="" className="w-full h-full object-cover rounded-lg" />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(i)}
-                          className="absolute top-1 right-1 p-1 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="w-3 h-3 text-white" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {error && (
@@ -261,8 +309,8 @@ export default function VendorPosts() {
                   className="flex-1 py-2.5 bg-cyan text-navy rounded-xl font-semibold text-sm hover:bg-cyan/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {submitting ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Đang đăng...</>
-                  ) : 'Đăng Bài'}
+                    <><Loader2 className="w-4 h-4 animate-spin" /> {editingPost ? 'Đang cập nhật...' : 'Đang đăng...'}</>
+                  ) : editingPost ? 'Cập Nhật' : 'Đăng Bài'}
                 </button>
               </div>
             </form>
@@ -270,7 +318,6 @@ export default function VendorPosts() {
         </div>
       )}
 
-      {/* Posts List */}
       {loading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-cyan" />
@@ -298,12 +345,20 @@ export default function VendorPosts() {
                     {formatDate(post.createdAt)}
                   </div>
                 </div>
-                <button
-                  onClick={() => handleDelete(post._id)}
-                  className="p-2 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors ml-4"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleEdit(post)}
+                    className="p-2 text-white/30 hover:text-cyan hover:bg-cyan/10 rounded-lg transition-colors"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(post._id)}
+                    className="p-2 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               <p className="text-silver text-sm leading-relaxed mb-4 whitespace-pre-wrap">{post.content}</p>
@@ -311,19 +366,34 @@ export default function VendorPosts() {
               {post.images.length > 0 && (
                 <div className={`grid gap-2 ${post.images.length === 1 ? 'grid-cols-1' : post.images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                   {post.images.map((img, i) => (
-                    <img
+                    <button
                       key={i}
-                      src={`${BASE_URL}${img}`}
-                      alt=""
-                      className="w-full aspect-video object-cover rounded-xl"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
+                      onClick={() => openLightbox(post.images, i)}
+                      className="w-full aspect-video rounded-xl overflow-hidden border border-white/10 hover:border-cyan/40 transition-colors"
+                    >
+                      <img
+                        src={`${BASE_URL}${img}`}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    </button>
                   ))}
                 </div>
               )}
             </div>
           ))}
         </div>
+      )}
+
+      {lightbox && (
+        <ImageLightbox
+          images={lightbox.images}
+          index={lightbox.index}
+          onClose={closeLightbox}
+          onPrev={showPrevLightbox}
+          onNext={showNextLightbox}
+        />
       )}
     </div>
   );

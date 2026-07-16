@@ -2,8 +2,10 @@ import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import { User } from '../models/user.model';
 import { Vendor } from '../models/vendor.model';
+import { VendorRegistration } from '../models/vendor-registration.model';
 import { Booking } from '../models/booking.model';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { createNotification } from './notification.controller';
 import { sendVendorApprovalEmail, sendVendorRejectionEmail } from '../services/email.service';
 import { ActivityLog } from '../models/activityLog.model';
 import { Report } from '../models/report.model';
@@ -320,11 +322,12 @@ export const approveVendor = async (req: AuthRequest, res: Response): Promise<vo
     const { vendorId } = req.params;
 
     // Find vendor
-    const vendor = await Vendor.findById(vendorId).populate('userId');
+    const vendor = await Vendor.findById(vendorId);
     if (!vendor) {
       res.status(404).json({ message: 'Vendor không tồn tại' });
       return;
     }
+    const vendorUserId = vendor.userId;
 
     // Check if already approved
     if (vendor.verificationStatus === 'approved') {
@@ -337,8 +340,28 @@ export const approveVendor = async (req: AuthRequest, res: Response): Promise<vo
     vendor.isVerified = true;
     await vendor.save();
 
+    // Sync to VendorRegistration
+    if (vendor.registrationId) {
+      await VendorRegistration.findByIdAndUpdate(vendor.registrationId, {
+        verificationStatus: 'approved',
+      });
+    } else {
+      await VendorRegistration.findOneAndUpdate(
+        { userId: vendorUserId },
+        { verificationStatus: 'approved' }
+      );
+    }
+
     // Send approval email
     await sendVendorApprovalEmail(vendor.email, vendor.companyName);
+
+    // Create in-app notification
+    createNotification(
+      vendorUserId,
+      'vendor_approved',
+      'Hồ sơ doanh nghiệp đã được duyệt',
+      `Hồ sơ "${vendor.companyName}" của bạn đã được phê duyệt. Bạn có thể bắt đầu đăng gói dịch vụ và nhận đơn đặt lịch.`
+    );
 
     res.status(200).json({
       message: 'Phê duyệt vendor thành công!',
@@ -367,11 +390,12 @@ export const rejectVendor = async (req: AuthRequest, res: Response): Promise<voi
     }
 
     // Find vendor
-    const vendor = await Vendor.findById(vendorId).populate('userId');
+    const vendor = await Vendor.findById(vendorId);
     if (!vendor) {
       res.status(404).json({ message: 'Vendor không tồn tại' });
       return;
     }
+    const vendorUserId = vendor.userId;
 
     // Check if already rejected
     if (vendor.verificationStatus === 'rejected') {
@@ -384,8 +408,29 @@ export const rejectVendor = async (req: AuthRequest, res: Response): Promise<voi
     vendor.verificationReason = reason.trim();
     await vendor.save();
 
+    // Sync to VendorRegistration
+    if (vendor.registrationId) {
+      await VendorRegistration.findByIdAndUpdate(vendor.registrationId, {
+        verificationStatus: 'rejected',
+        verificationReason: reason.trim(),
+      });
+    } else {
+      await VendorRegistration.findOneAndUpdate(
+        { userId: vendorUserId },
+        { verificationStatus: 'rejected', verificationReason: reason.trim() }
+      );
+    }
+
     // Send rejection email with reason
     await sendVendorRejectionEmail(vendor.email, vendor.companyName, reason);
+
+    // Create in-app notification
+    createNotification(
+      vendorUserId,
+      'vendor_rejected',
+      'Hồ sơ doanh nghiệp bị từ chối',
+      `Hồ sơ "${vendor.companyName}" của bạn đã bị từ chối. Lý do: ${reason}`
+    );
 
     res.status(200).json({
       message: 'Từ chối vendor thành công!',

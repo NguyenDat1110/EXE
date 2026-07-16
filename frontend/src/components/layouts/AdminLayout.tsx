@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+
 import { Shield, Settings, Users, FileText, Wallet, LogOut, Menu, X, CheckCircle, Package, MessageSquareWarning, Crown, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NotificationDropdown } from '../common/NotificationDropdown';
@@ -46,11 +47,10 @@ export function AdminLayout() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
-                  isActive
-                    ? 'bg-cyan/15 text-cyan border border-cyan/35 cyan-glow'
-                    : 'text-silver hover:text-white hover:bg-white/5 border border-transparent'
-                }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${isActive
+                  ? 'bg-cyan/15 text-cyan border border-cyan/35 cyan-glow'
+                  : 'text-silver hover:text-white hover:bg-white/5 border border-transparent'
+                  }`}
               >
                 <Icon className="w-5 h-5" />
                 {item.label}
@@ -108,11 +108,10 @@ export function AdminLayout() {
                       key={item.path}
                       to={item.path}
                       onClick={() => setSidebarOpen(false)}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
-                        isActive
-                          ? 'bg-cyan/15 text-cyan border border-cyan/35'
-                          : 'text-silver hover:text-white hover:bg-white/5 border border-transparent'
-                      }`}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${isActive
+                        ? 'bg-cyan/15 text-cyan border border-cyan/35'
+                        : 'text-silver hover:text-white hover:bg-white/5 border border-transparent'
+                        }`}
                     >
                       <Icon className="w-5 h-5" />
                       {item.label}
@@ -157,58 +156,60 @@ export function AdminLayout() {
           <div className="flex items-center gap-4">
             <NotificationDropdown />
 
-            {user && (
-              <div className="relative">
-                <button
-                  onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="flex items-center gap-2 hover:opacity-85 transition-opacity focus:outline-none"
-                >
-                  <img
-                    src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`}
-                    alt={user.name}
-                    className="w-10 h-10 rounded-full border border-cyan/40 object-cover"
-                  />
-                </button>
+            {
+              user && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowProfileMenu(!showProfileMenu)}
+                    className="flex items-center gap-2 hover:opacity-85 transition-opacity focus:outline-none"
+                  >
+                    <img
+                      src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`}
+                      alt={user.name}
+                      className="w-10 h-10 rounded-full border border-cyan/40 object-cover"
+                    />
+                  </button>
 
-                <AnimatePresence>
-                  {showProfileMenu && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="absolute right-0 top-full mt-2 w-48 glass-panel rounded-xl p-3 space-y-2 z-50 bg-navy/95"
-                      >
-                        <div className="px-3 py-2 border-b border-white/10">
-                          <p className="text-white font-semibold text-sm truncate">{user.name}</p>
-                          <p className="text-cyan text-xs font-semibold uppercase tracking-wider">Admin</p>
-                        </div>
-                        <button
-                          onClick={() => {
-                            logout();
-                            setShowProfileMenu(false);
-                            navigate('/');
-                          }}
-                          className="w-full text-left px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all text-sm flex items-center gap-2"
+                  <AnimatePresence>
+                    {showProfileMenu && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="absolute right-0 top-full mt-2 w-48 glass-panel rounded-xl p-3 space-y-2 z-50 bg-navy/95"
                         >
-                          <LogOut className="w-4 h-4" />
-                          Đăng Xuất
-                        </button>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
-        </header>
+                          <div className="px-3 py-2 border-b border-white/10">
+                            <p className="text-white font-semibold text-sm truncate">{user.name}</p>
+                            <p className="text-cyan text-xs font-semibold uppercase tracking-wider">Admin</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              logout();
+                              setShowProfileMenu(false);
+                              navigate('/');
+                            }}
+                            className="w-full text-left px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all text-sm flex items-center gap-2"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            Đăng Xuất
+                          </button>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )
+            }
+          </div >
+        </header >
 
         {/* Dashboard Content */}
-        <main className="flex-grow p-6 lg:p-12 overflow-y-auto max-w-7xl w-full mx-auto">
+        < main className="flex-grow p-6 lg:p-12 overflow-y-auto max-w-7xl w-full mx-auto" >
           <Outlet />
-        </main>
-      </div>
-    </div>
+        </main >
+      </div >
+    </div >
   );
 }

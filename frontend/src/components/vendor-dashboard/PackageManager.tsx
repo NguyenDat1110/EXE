@@ -280,18 +280,18 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
       if (editingBooth) {
         const res = await updateBooth(editingBooth._id, payload);
         setBooths((prev) => prev.map((b) => (b._id === editingBooth._id ? res.booth : b)));
-        showToast('Đã cập nhật gian hàng', 'success');
+        showToast('Cập nhật gian hàng thành công', 'success');
       } else {
         const res = await createBooth(payload);
         setBooths((prev) => [res.booth, ...prev]);
         setSelectedBoothId(res.booth._id);
-        showToast('Đã tạo gian hàng mới', 'success');
+        showToast('Tạo gian hàng mới thành công', 'success');
       }
 
       closeBoothModal();
     } catch (error) {
       console.error('Save booth error', error);
-      showToast('Lưu gian hàng thất bại', 'error');
+      showToast('Lưu gian hàng thất bại, vui lòng thử lại', 'error');
     } finally {
       setSaving(false);
     }
@@ -309,10 +309,10 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
     try {
       const uploaded = await uploadToCloudinary(file, 'eventflow/booth-covers');
       setBoothForm((prev) => ({ ...prev, coverImage: uploaded.secure_url }));
-      showToast('Đã cập nhật ảnh cover', 'success');
+      showToast('Cập nhật ảnh cover thành công', 'success');
     } catch (error: any) {
       console.error('Upload booth cover error', error);
-      showToast(error?.message || 'Không thể tải ảnh cover', 'error');
+      showToast(error?.message || 'Tải ảnh cover thất bại', 'error');
     }
   };
 
@@ -320,10 +320,10 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
     try {
       const res = await toggleBooth(booth._id);
       setBooths((prev) => prev.map((b) => (b._id === booth._id ? res.booth : b)));
-      showToast('Đã cập nhật trạng thái gian hàng', 'success');
+      showToast(res.booth.isActive ? 'Đã bật gian hàng' : 'Đã tắt gian hàng', 'success');
     } catch (error) {
       console.error('Toggle booth error', error);
-      showToast('Không thể đổi trạng thái gian hàng', 'error');
+      showToast('Đổi trạng thái gian hàng thất bại', 'error');
     }
   };
 
@@ -342,10 +342,10 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
         setSelectedBoothId(next[0]?._id || '');
       }
 
-      showToast('Đã xóa gian hàng', 'success');
+      showToast('Xóa gian hàng thành công', 'success');
     } catch (error) {
       console.error('Delete booth error', error);
-      showToast('Xóa gian hàng thất bại', 'error');
+      showToast('Xóa gian hàng thất bại, vui lòng thử lại', 'error');
     }
   };
 
@@ -442,7 +442,7 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
       setPackageForm((prev) => ({ ...prev, images: [...prev.images, ...uploadedUrls] }));
     } catch (error: any) {
       console.error('Upload package images error', error);
-      showToast(error?.message || 'Không thể tải ảnh package', 'error');
+      showToast(error?.message || 'Tải ảnh lên thất bại', 'error');
     } finally {
       setUploadingImages(false);
     }
@@ -476,10 +476,10 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
     try {
       const uploaded = await uploadToCloudinaryFile(file, 'eventflow/package-models', 'raw');
       setPackageForm((prev) => ({ ...prev, model3dUrl: uploaded.secure_url }));
-      showToast('Đã tải file 3D thành công', 'success');
+      showToast('Tải file 3D thành công', 'success');
     } catch (error: any) {
       console.error('Upload 3D error', error);
-      showToast(error?.message || 'Không thể tải file 3D', 'error');
+      showToast(error?.message || 'Tải file 3D thất bại', 'error');
     }
   };
 
@@ -584,20 +584,20 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
           ...prev,
           [selectedBoothId]: (prev[selectedBoothId] || []).map((p) => (p._id === editingPackage._id ? res.package : p))
         }));
-        showToast('Đã cập nhật package', 'success');
+        showToast('Cập nhật gói dịch vụ thành công', 'success');
       } else {
         const res = await createPackage(payload);
         setPackagesByBooth((prev) => ({
           ...prev,
           [selectedBoothId]: [res.package, ...(prev[selectedBoothId] || [])]
         }));
-        showToast('Đã tạo package mới', 'success');
+        showToast('Tạo gói dịch vụ mới thành công', 'success');
       }
 
       closePackageModal();
     } catch (error) {
       console.error('Save package error', error);
-      showToast('Lưu package thất bại', 'error');
+      showToast('Lưu gói dịch vụ thất bại, vui lòng thử lại', 'error');
     } finally {
       setSaving(false);
     }
@@ -610,10 +610,10 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
         ...prev,
         [pkg.boothId]: (prev[pkg.boothId] || []).map((p) => (p._id === pkg._id ? res.package : p))
       }));
-      showToast('Đã cập nhật trạng thái package', 'success');
+      showToast(res.package.isActive ? 'Đã bật gói dịch vụ' : 'Đã tắt gói dịch vụ', 'success');
     } catch (error) {
       console.error('Toggle package error', error);
-      showToast('Không thể đổi trạng thái package', 'error');
+      showToast('Đổi trạng thái gói dịch vụ thất bại', 'error');
     }
   };
 
@@ -624,10 +624,10 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
         ...prev,
         [pkg.boothId]: (prev[pkg.boothId] || []).filter((p) => p._id !== pkg._id)
       }));
-      showToast('Đã xóa package', 'success');
+      showToast('Xóa gói dịch vụ thành công', 'success');
     } catch (error) {
       console.error('Delete package error', error);
-      showToast('Xóa package thất bại', 'error');
+      showToast('Xóa gói dịch vụ thất bại', 'error');
     }
   };
 
@@ -915,19 +915,23 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
                         <p className="text-xs text-slate-400">Ảnh mới sẽ thay thế ảnh cover hiện tại.</p>
                       </div>
                     ) : (
-                      <p className="text-sm text-slate-400">Chưa có ảnh cover. Tải lên một ảnh để hiển thị ở trang chi tiết.</p>
+                      <p className="text-sm text-slate-400 mb-3">Chưa có ảnh cover. Tải lên một ảnh để hiển thị ở trang chi tiết.</p>
                     )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleBoothCoverUpload(e.target.files?.[0] || null)}
-                      className="mt-3 w-full text-sm text-white/70"
-                    />
+                    <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-cyan text-navy rounded-xl font-semibold text-sm cursor-pointer hover:bg-cyan/90 transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      Chọn tệp
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleBoothCoverUpload(e.target.files?.[0] || null)}
+                        className="hidden"
+                      />
+                    </label>
                     {boothForm.coverImage && (
                       <button
                         type="button"
                         onClick={() => setBoothForm((prev) => ({ ...prev, coverImage: '' }))}
-                        className="mt-3 text-xs text-cyan hover:underline"
+                        className="ml-3 text-xs text-cyan hover:underline"
                       >
                         Xóa ảnh cover hiện tại
                       </button>
@@ -1077,29 +1081,30 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
                 <div>
                   <label className="block text-sm text-slate-300 mb-2">Thời lượng phục vụ</label>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
+                    <div className="flex items-center gap-2">
                       <input
                         type="number"
                         min={0}
                         value={packageForm.serviceDurationHours}
                         onChange={(e) => setPackageForm((prev) => ({ ...prev, serviceDurationHours: e.target.value }))}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary"
-                        placeholder="Giờ"
+                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary"
+                        placeholder="0"
                       />
+                      <span className="text-slate-400 text-sm whitespace-nowrap">giờ</span>
                     </div>
-                    <div>
+                    <div className="flex items-center gap-2">
                       <input
                         type="number"
                         min={0}
                         max={59}
                         value={packageForm.serviceDurationMinutes}
                         onChange={(e) => setPackageForm((prev) => ({ ...prev, serviceDurationMinutes: e.target.value }))}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary"
-                        placeholder="Phút"
+                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary"
+                        placeholder="0"
                       />
+                      <span className="text-slate-400 text-sm whitespace-nowrap">phút</span>
                     </div>
                   </div>
-                  <p className="text-slate-500 text-xs mt-2">Nhập thời lượng phục vụ bằng giờ và phút.</p>
                   {packageErrors.serviceDuration && <p className="text-red-400 text-xs mt-1">{packageErrors.serviceDuration}</p>}
                 </div>
 

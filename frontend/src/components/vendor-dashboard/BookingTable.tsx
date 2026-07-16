@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Eye, X, CheckCircle2, XCircle, Calendar as CalendarIcon, Users, Wallet, FileText, Image as ImageIcon } from 'lucide-react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Eye, X, CheckCircle2, XCircle, Calendar as CalendarIcon, Users, Wallet, FileText, Image as ImageIcon, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getVendorBookings, acceptBooking, declineBooking, markVendorComplete, vendorConfirmDeposit, vendorRejectDeposit } from '../../services/bookingsApi';
 
@@ -25,31 +25,63 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 export default function BookingTable({ showToast }: { showToast: (msg: string, type?: 'success' | 'error' | 'info') => void }) {
+  const showToastRef = useRef(showToast);
+  showToastRef.current = showToast;
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [depositRejectReason, setDepositRejectReason] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 5;
 
   const formatVND = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
 
-  const loadBookings = async () => {
+  const loadBookings = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getVendorBookings();
+      const params: Record<string, any> = { page, limit };
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (searchQuery.trim()) params.search = searchQuery.trim();
+      if (dateFrom) params.dateFrom = dateFrom;
+      if (dateTo) params.dateTo = dateTo;
+      const res = await getVendorBookings(params);
       setBookings(res?.data?.bookings || []);
+      setTotal(res?.data?.total || 0);
+      setTotalPages(res?.data?.totalPages || 1);
     } catch (err: any) {
-      showToast(err?.response?.data?.message || 'Không thể tải danh sách booking', 'error');
+      showToastRef.current(err?.response?.data?.message || 'Không thể tải danh sách đơn sự kiện', 'error');
       setBookings([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, statusFilter, searchQuery, dateFrom, dateTo]);
 
   useEffect(() => {
     loadBookings();
-  }, []);
+  }, [loadBookings]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, searchQuery, dateFrom, dateTo]);
+
+  const handleSearch = () => {
+    setSearchQuery(searchInput.trim());
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
 
   const handleApprove = async () => {
     if (!selectedBooking) return;
@@ -121,27 +153,74 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
     return new Date(booking.completionEligibleAt).getTime() <= Date.now();
   };
 
+  const from = (page - 1) * limit + 1;
+  const to = Math.min(page * limit, total);
+
   return (
     <>
       <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="p-6 border-b border-white/10 flex justify-between items-center">
-          <h3 className="text-lg font-bold text-white">Danh Sách Booking</h3>
-          <div className="flex gap-2">
-            <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary appearance-none">
-              <option value="all" className="bg-background-dark">Tất cả trạng thái</option>
-              <option value="pending" className="bg-background-dark">Chờ duyệt</option>
-              <option value="waiting_deposit" className="bg-background-dark">Chờ thanh toán</option>
-              <option value="confirmed" className="bg-background-dark">Đã xác nhận</option>
-            </select>
+        <div className="p-6 border-b border-white/10 space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold text-white">Danh sách đơn sự kiện</h3>
+            <div className="flex gap-2">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary appearance-none"
+              >
+                <option value="all" className="bg-background-dark">Tất cả trạng thái</option>
+                <option value="pending" className="bg-background-dark">Chờ duyệt</option>
+                <option value="waiting_deposit" className="bg-background-dark">Chờ thanh toán</option>
+                <option value="confirmed" className="bg-background-dark">Đã xác nhận</option>
+                <option value="vendor_completed" className="bg-background-dark">Vendor hoàn thành</option>
+                <option value="customer_completed" className="bg-background-dark">Chờ thanh toán còn lại</option>
+                <option value="completed" className="bg-background-dark">Hoàn thành</option>
+                <option value="cancelled" className="bg-background-dark">Đã hủy</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Tìm kiếm khách hàng..."
+                className="w-full bg-white/5 border border-white/10 rounded-lg pl-3 pr-10 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-primary"
+              />
+              <button
+                onClick={handleSearch}
+                className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 rounded-md bg-cyan/20 text-cyan hover:bg-cyan/30 transition-colors"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+            </div>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="date-input bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary"
+            />
+            <span className="text-slate-500 self-center">→</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="date-input bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary"
+            />
           </div>
         </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-white/5 text-slate-400 text-xs uppercase tracking-wider">
                 <th className="p-4 font-medium">Gói</th>
                 <th className="p-4 font-medium">Ngày</th>
-                <th className="p-4 font-medium">Khách</th>
+                <th className="p-4 font-medium">Khách hàng</th>
+                <th className="p-4 font-medium">Số khách</th>
                 <th className="p-4 font-medium">Ngân sách</th>
                 <th className="p-4 font-medium">Trạng thái</th>
                 <th className="p-4 font-medium text-center">Hành động</th>
@@ -149,26 +228,33 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
             </thead>
             <tbody className="divide-y divide-white/5">
               {loading ? (
-                <tr>
-                  <td colSpan={6} className="p-6 text-sm text-slate-400 text-center">Đang tải booking...</td>
-                </tr>
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={`skel-${i}`} className="animate-pulse">
+                    {Array.from({ length: 7 }).map((_, j) => (
+                      <td key={j} className="p-4">
+                        <div className="h-4 bg-white/10 rounded" style={{ width: j === 6 ? '24px' : j === 0 ? '140px' : j === 4 ? '100px' : '80px' }} />
+                        {j === 0 && <div className="h-3 bg-white/10 rounded w-20 mt-2" />}
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : bookings.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-6 text-sm text-slate-400 text-center">Chưa có booking nào.</td>
+                  <td colSpan={7} className="p-6 text-sm text-slate-400 text-center">Chưa có đơn sự kiện nào.</td>
                 </tr>
               ) : (
                 bookings.map((booking) => (
                   <tr key={booking._id} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => setSelectedBooking(booking)}>
                     <td className="p-4">
                       <div className="font-medium text-white">{booking.package?.name || 'Booking mới'}</div>
-                      <div className="text-xs text-slate-500">{booking._id}</div>
                     </td>
                     <td className="p-4 text-sm text-slate-300">{booking.eventDate?.split('T')[0] || '-'}</td>
+                    <td className="p-4 text-sm text-slate-300">{booking.customer?.name || booking.customerId?.name || '-'}</td>
                     <td className="p-4 text-sm text-slate-300">{booking.numberOfGuests}</td>
                     <td className="p-4 text-sm font-medium text-primary">{formatVND(booking.totalPrice || 0)}</td>
                     <td className="p-4"><StatusBadge status={booking.status} /></td>
                     <td className="p-4 text-center">
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); setSelectedBooking(booking); }}
                         className="p-2 rounded-lg hover:bg-white/10 transition-colors inline-flex"
                       >
@@ -181,10 +267,34 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
             </tbody>
           </table>
         </div>
+
         <div className="p-4 border-t border-white/10 flex justify-between items-center text-sm text-slate-400">
-          <span>Hiển thị {bookings.length} booking</span>
-          <div className="flex gap-1">
-            <button onClick={loadBookings} className="px-3 py-1 rounded bg-white/5 hover:bg-white/10 transition-colors">Tải lại</button>
+          <span>Hiển thị {total > 0 ? `${from} - ${to}` : 0} / {total} đơn sự kiện</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                className={`px-3 py-1 rounded-lg text-sm transition-colors ${p === page ? 'bg-primary text-background-dark font-semibold' : 'bg-white/5 hover:bg-white/10 text-slate-400'
+                  }`}
+              >
+                {p}
+              </button>
+            ))}
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
@@ -192,14 +302,14 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
       <AnimatePresence>
         {selectedBooking && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedBooking(null)}
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
             />
-            <motion.div 
+            <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}

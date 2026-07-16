@@ -16,9 +16,6 @@ export function VendorLayout() {
     { label: 'Dashboard', path: '/vendor/dashboard', icon: LayoutDashboard },
     { label: 'Quản Lí Gian Hàng', path: '/vendor/packages', icon: Briefcase },
     { label: 'Bài Viết', path: '/vendor/posts', icon: Newspaper },
-
-    { label: 'Đánh giá', path: '/vendor/reviews', icon: Star },
-
     { label: 'Đánh Giá', path: '/vendor/feedback', icon: Star },
     { label: 'Hồ sơ', path: '/vendor/profile', icon: User },
     { label: 'Đăng Kí Doanh Nghiệp', path: '/vendor/registration', icon: FileCheck },
@@ -53,11 +50,10 @@ export function VendorLayout() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
-                  isActive
-                    ? 'bg-cyan/15 text-cyan border border-cyan/35 cyan-glow'
-                    : 'text-silver hover:text-white hover:bg-white/5 border border-transparent'
-                }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${isActive
+                  ? 'bg-cyan/15 text-cyan border border-cyan/35 cyan-glow'
+                  : 'text-silver hover:text-white hover:bg-white/5 border border-transparent'
+                  }`}
               >
                 <Icon className="w-5 h-5" />
                 {item.label}
@@ -119,11 +115,10 @@ export function VendorLayout() {
                       key={item.path}
                       to={item.path}
                       onClick={() => setSidebarOpen(false)}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
-                        isActive
-                          ? 'bg-cyan/15 text-cyan border border-cyan/35'
-                          : 'text-silver hover:text-white hover:bg-white/5 border border-transparent'
-                      }`}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${isActive
+                        ? 'bg-cyan/15 text-cyan border border-cyan/35'
+                        : 'text-silver hover:text-white hover:bg-white/5 border border-transparent'
+                        }`}
                     >
                       <Icon className="w-5 h-5" />
                       {item.label}

@@ -5,7 +5,7 @@ import { Heart, MessageCircle, Share2, MoreHorizontal, Calendar, MapPin, ImageIc
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
 
 const formatDate = (iso: string) => {
   const d = new Date(iso);

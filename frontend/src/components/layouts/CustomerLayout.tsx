@@ -23,7 +23,7 @@ export function CustomerLayout() {
       <div className="grain-overlay" />
 
       {/* Authenticated Customer Navbar */}
-      <header className="fixed top-0 left-0 right-0 h-20 flex items-center justify-between px-6 lg:px-20 border-b border-white/10 bg-navy/90 backdrop-blur-md z-40">
+      <header className="fixed top-0 left-0 right-0 h-20 flex items-center justify-between px-6 lg:px-8 border-b border-white/10 bg-navy/90 backdrop-blur-md z-40">
         {/* Logo */}
         <Link to="/explore" className="flex items-center gap-3">
           <div className="text-cyan">
@@ -92,19 +92,12 @@ export function CustomerLayout() {
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
-                      className="absolute right-0 top-full mt-2 w-52 glass-panel rounded-xl p-3 space-y-2 z-50 bg-navy/95"
+                      className="absolute right-[-8px] md:right-[-16px] lg:right-[-24px] top-full mt-2 w-52 glass-panel rounded-xl p-3 space-y-2 z-50 bg-navy/95"
                     >
                       <div className="px-3 py-2 border-b border-white/10">
                         <p className="text-white font-semibold text-sm truncate">{user.name}</p>
                         <p className="text-cyan text-xs font-semibold uppercase tracking-wider">Khách Hàng</p>
                       </div>
-                      <Link
-                        to="/explore"
-                        onClick={() => setShowProfileMenu(false)}
-                        className="block w-full text-left px-3 py-2 text-silver hover:text-cyan hover:bg-white/5 rounded-lg transition-all text-sm"
-                      >
-                        Khám phá dịch vụ
-                      </Link>
                       <Link
                         to="/timeline"
                         onClick={() => setShowProfileMenu(false)}
@@ -112,13 +105,6 @@ export function CustomerLayout() {
                       >
                         <Rss className="w-4 h-4" />
                         Dòng Thời Gian
-                      </Link>
-                      <Link
-                        to="/my-bookings"
-                        onClick={() => setShowProfileMenu(false)}
-                        className="block w-full text-left px-3 py-2 text-silver hover:text-cyan hover:bg-white/5 rounded-lg transition-all text-sm"
-                      >
-                        Đơn đặt của tôi
                       </Link>
 
                       <Link

@@ -209,6 +209,7 @@ export const updatePackage = async (req: AuthRequest, res: Response): Promise<vo
       'serviceDuration',
       'images',
       'model3dUrl',
+      'stageLayout',
       'isActive'
     ].forEach(f => {
       if (req.body[f] !== undefined) allowed[f] = req.body[f];

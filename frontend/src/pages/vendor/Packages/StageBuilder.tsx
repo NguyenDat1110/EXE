@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LayoutGrid, Box, RotateCcw, Trash2, Save, ArrowLeft, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import api from '../../../services/api';
 import { useStageBuilderStore } from '../../../store/stageBuilderStore';
 import SidebarPalette from '../../../components/features/stage-builder/SidebarPalette';
 import KonvaCanvas from '../../../components/features/stage-builder/KonvaCanvas';
@@ -37,7 +37,7 @@ export default function VendorStageBuilder({ showToast }: VendorStageBuilderProp
     const loadData = async () => {
       try {
         // Fetch package details
-        const res = await axios.get(`/api/packages/public/${packageId}`);
+        const res = await api.get(`/packages/public/${packageId}`);
         const data = res.data.data.package;
         
         if (isMounted) {
@@ -81,11 +81,9 @@ export default function VendorStageBuilder({ showToast }: VendorStageBuilderProp
     }
     setIsSaving(true);
     try {
-      const token = localStorage.getItem('token');
-      await axios.patch(
-        `/api/packages/${packageId}`,
-        { stageLayout: items },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await api.patch(
+        `/packages/${packageId}`,
+        { stageLayout: items }
       );
       showToast('Lưu thiết kế thành công!', 'success');
     } catch (err) {

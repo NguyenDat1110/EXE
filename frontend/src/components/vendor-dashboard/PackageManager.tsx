@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, Edit2, Eye, EyeOff, ImagePlus, Plus, Store, Trash2, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Edit2, Eye, EyeOff, ImagePlus, Plus, Store, Trash2, X, Paintbrush } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import {
   createBooth,
   deleteBooth,
@@ -123,6 +124,7 @@ const parseDurationToHourMinute = (duration: string) => {
 const MAX_PACKAGE_IMAGES = 10;
 
 export default function PackageManager({ showToast }: { showToast: (msg: string, type?: 'success' | 'error' | 'info') => void }) {
+  const navigate = useNavigate();
   const [booths, setBooths] = useState<Booth[]>([]);
   const [selectedBoothId, setSelectedBoothId] = useState<string>('');
   const [packagesByBooth, setPackagesByBooth] = useState<Record<string, ServicePackage[]>>({});
@@ -803,6 +805,19 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
                       <p className="text-sm text-slate-300 mt-1">{pkg.description || 'Chưa có mô tả.'}</p>
                     </div>
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          if (vendorPlan !== 'vip') {
+                            showToast('Anh yêu ơi, tính năng Thiết kế sân khấu 3D yêu cầu gói VIP. Anh yêu hãy nâng cấp gói nhé! 😘', 'error');
+                            return;
+                          }
+                          navigate(`/vendor/packages/${pkg._id}/stage-builder`);
+                        }}
+                        className="p-2 rounded-lg bg-cyan/10 hover:bg-cyan/20 text-cyan border border-cyan/20"
+                        title="Thiết kế sân khấu 3D"
+                      >
+                        <Paintbrush className="w-4 h-4" />
+                      </button>
                       {pkg.model3dUrl && (
                         <button
                           onClick={() => openPreview3D(pkg)}

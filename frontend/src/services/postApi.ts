@@ -10,7 +10,9 @@ export interface Post {
   images: string[];
   eventType?: string;
   likes: number;
+  isLiked?: boolean;
   isPublished: boolean;
+  packageId?: any;
   createdAt: string;
   updatedAt: string;
 }
@@ -82,5 +84,17 @@ export const getPostById = async (postId: string): Promise<{ post: Post, boothId
 // Customer xem hồ sơ vendor public (tất cả bài viết)
 export const getVendorPosts = async (vendorId: string): Promise<{ vendor: any, posts: Post[], boothId: string }> => {
   const res = await api.get(`/posts/vendor/${vendorId}`);
+  return res.data;
+};
+
+// Thích / bỏ thích bài viết
+export const toggleLikePost = async (postId: string): Promise<{ likes: number; isLiked: boolean }> => {
+  const res = await api.post(`/posts/${postId}/like`);
+  return res.data;
+};
+
+// Lấy danh sách bài viết đã thích
+export const getLikedPosts = async (): Promise<{ posts: Post[] }> => {
+  const res = await api.get('/posts/liked');
   return res.data;
 };

@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { Post } from '../../services/postApi';
 import { getVendorFirstBooth } from '../../services/exploreApi';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Calendar, MapPin, ImageIcon, Eye, CalendarCheck } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Calendar, MapPin, ImageIcon, Eye, CalendarCheck, X, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useStageBuilderStore } from '../../store/stageBuilderStore';
 import { useNavigate } from 'react-router-dom';
+
+const ThreeDViewer = React.lazy(() => import('../features/stage-builder/ThreeDViewer'));
 
 const BASE_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
 
@@ -32,6 +35,17 @@ export default function EventFeedCard({ post, onLike, isLiked = false }: EventFe
   const navigate = useNavigate();
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
   const [isLoadingBooth, setIsLoadingBooth] = useState(false);
+  const [show3DModal, setShow3DModal] = useState(false);
+
+  const handleOpen3D = (stageLayout: any[]) => {
+    useStageBuilderStore.setState({ items: stageLayout });
+    setShow3DModal(true);
+  };
+
+  const handleClose3D = () => {
+    setShow3DModal(false);
+    useStageBuilderStore.getState().clearAll();
+  };
 
   const openLightbox = (images: string[], index: number) => setLightbox({ images, index });
   const closeLightbox = () => setLightbox(null);
@@ -145,13 +159,48 @@ export default function EventFeedCard({ post, onLike, isLiked = false }: EventFe
         </div>
       )}
 
+      {/* Package attached info card */}
+      {post.packageId && (
+        <div className="mx-4 mt-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
+              <CalendarCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Đính kèm gói dịch vụ</p>
+              <h4 className="font-bold text-white text-sm">{post.packageId.name}</h4>
+              <p className="text-xs text-silver/60">Giá từ: <span className="text-cyan font-bold">{(post.packageId.price || 0).toLocaleString('vi-VN')} đ</span></p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {post.packageId.stageLayout && post.packageId.stageLayout.length > 0 && (
+              <button
+                onClick={() => handleOpen3D(post.packageId.stageLayout)}
+                className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-cyan/20 to-purple-500/20 hover:from-cyan/30 hover:to-purple-500/30 text-cyan text-xs font-bold rounded-xl border border-cyan/30 hover:border-cyan/50 transition-all shadow-[0_0_15px_rgba(0,212,255,0.1)] group"
+              >
+                <span className="w-2 h-2 rounded-full bg-cyan animate-pulse group-hover:bg-purple-400 transition-colors" />
+                Trải nghiệm 3D
+              </button>
+            )}
+            
+            <button
+              onClick={() => handleGoToBooth('book')}
+              className="flex-1 md:flex-none px-4 py-2 bg-cyan hover:bg-cyan/90 text-navy text-xs font-bold rounded-xl transition-all"
+            >
+              Đặt lịch
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="px-4 py-3 flex justify-between items-center text-xs text-silver/60">
         <div className="flex items-center gap-1.5">
           <div className="w-5 h-5 rounded-full bg-cyan/20 flex items-center justify-center">
             <Heart className="w-3 h-3 text-cyan fill-cyan" />
           </div>
-          <span>{post.likes + (isLiked ? 1 : 0)}</span>
+          <span>{post.likes}</span>
         </div>
       </div>
 
@@ -201,6 +250,72 @@ export default function EventFeedCard({ post, onLike, isLiked = false }: EventFe
               className="max-w-full max-h-full object-contain rounded-xl"
             />
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* 3D Preview Modal */}
+      <AnimatePresence>
+        {show3DModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-navy border border-white/10 rounded-3xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden shadow-2xl relative"
+            >
+              {/* Header */}
+              <div className="p-5 border-b border-white/5 flex items-center justify-between bg-navy/95">
+                <div>
+                  <span className="text-[10px] text-cyan font-bold uppercase tracking-wider">MÔ PHỎNG KHÔNG GIAN 3D 360°</span>
+                  <h3 className="text-base font-bold text-white">{post.packageId?.name || 'Sân khấu mẫu'}</h3>
+                </div>
+                <button
+                  onClick={handleClose3D}
+                  className="p-2 rounded-full hover:bg-white/5 text-silver hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* 3D Viewer */}
+              <div className="flex-1 min-h-0 p-4 flex flex-col">
+                <React.Suspense fallback={
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+                    <Loader2 className="w-8 h-8 text-cyan animate-spin" />
+                    <span className="text-xs text-white/50">Đang khởi tạo không gian 3D...</span>
+                  </div>
+                }>
+                  <ThreeDViewer />
+                </React.Suspense>
+              </div>
+
+              {/* Footer */}
+              <div className="p-5 border-t border-white/5 flex items-center justify-between bg-navy/95">
+                <div className="text-xs text-silver/60">
+                  Sử dụng <span className="text-white font-semibold">chuột trái</span> để xoay 360°, <span className="text-white font-semibold">cuộn chuột</span> để phóng to/thu nhỏ.
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-cyan">
+                    {(post.packageId?.price || 0).toLocaleString('vi-VN')} đ
+                  </span>
+                  <button
+                    onClick={() => {
+                      handleClose3D();
+                      handleGoToBooth('book');
+                    }}
+                    className="px-5 py-2 bg-cyan text-navy hover:bg-cyan/90 font-bold text-xs rounded-xl uppercase tracking-wider transition-all"
+                  >
+                    Đặt lịch gói này
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

@@ -13,6 +13,7 @@ export interface IPackage extends Document {
   serviceDuration: string;
   images: string[];
   model3dUrl?: string;
+  stageLayout?: any[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -32,6 +33,7 @@ const packageSchema = new Schema<IPackage>(
     serviceDuration: { type: String, default: '' },
     images: [{ type: String }],
     model3dUrl: { type: String, default: '' },
+    stageLayout: { type: Schema.Types.Mixed, default: [] },
     isActive: { type: Boolean, default: true }
   },
   { timestamps: true }

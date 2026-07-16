@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2, Heart, Calendar, Search, Filter, X, ChevronLeft, ChevronRight, ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getTimelinePosts, Post } from '../../services/postApi';
+import { getTimelinePosts, Post, toggleLikePost, getLikedPosts } from '../../services/postApi';
 import { ImageLightbox } from '../../components/ui/ImageLightbox';
 
 const BASE_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
@@ -9,11 +9,8 @@ const BASE_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.rep
 const EVENT_TYPES = [
   'Tất cả',
   'Tiệc sinh nhật',
-  'Tiệc cưới',
-  'Hội nghị',
-  'Workshop',
-  'Lễ tốt nghiệp',
   'Tiệc công ty',
+  'Hội nghị',
   'Sự kiện khác',
 ];
 
@@ -40,7 +37,7 @@ export default function Timeline() {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('Tất cả');
-  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<'all' | 'liked'>('all');
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
 
   const openLightbox = (images: string[], index: number) => setLightbox({ images, index });
@@ -61,16 +58,22 @@ export default function Timeline() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [lightbox]);
 
-  const fetchPosts = useCallback(async (pageNum = 1, replace = true, type = filterType, keyword = search) => {
+  const fetchPosts = useCallback(async (pageNum = 1, replace = true, type = filterType, keyword = search, tab = activeTab) => {
     try {
       if (replace) setLoading(true);
       else setLoadingMore(true);
 
-      const data = await getTimelinePosts(pageNum, 10, type, keyword);
-
-      setPosts((prev) => replace ? data.posts : [...prev, ...data.posts]);
-      setTotalPages(data.pagination.totalPages);
-      setPage(pageNum);
+      if (tab === 'liked') {
+        const data = await getLikedPosts();
+        setPosts(data.posts);
+        setTotalPages(1);
+        setPage(1);
+      } else {
+        const data = await getTimelinePosts(pageNum, 10, type, keyword);
+        setPosts((prev) => replace ? data.posts : [...prev, ...data.posts]);
+        setTotalPages(data.pagination.totalPages);
+        setPage(pageNum);
+      }
     } catch {
       // silent
     } finally {
@@ -78,12 +81,12 @@ export default function Timeline() {
       setLoadingMore(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [filterType, search]);
 
-  // Initial load
+  // Initial load & Tab switch
   useEffect(() => {
-    fetchPosts(1, true, filterType, search);
-  }, []);
+    fetchPosts(1, true, filterType, search, activeTab);
+  }, [activeTab]);
 
   const isFirstFilterRender = React.useRef(true);
   useEffect(() => {
@@ -91,7 +94,9 @@ export default function Timeline() {
       isFirstFilterRender.current = false;
       return;
     }
-    fetchPosts(1, true, filterType, search);
+    if (activeTab === 'all') {
+      fetchPosts(1, true, filterType, search, activeTab);
+    }
   }, [filterType]);
 
   const isFirstSearchRender = React.useRef(true);
@@ -100,50 +105,83 @@ export default function Timeline() {
       isFirstSearchRender.current = false;
       return;
     }
-    const timer = setTimeout(() => {
-      fetchPosts(1, true, filterType, search);
-    }, 400);
-    return () => clearTimeout(timer);
+    if (activeTab === 'all') {
+      const timer = setTimeout(() => {
+        fetchPosts(1, true, filterType, search, activeTab);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
   }, [search]);
 
-  const toggleLike = (postId: string) => {
-    setLikedPosts((prev) => {
-      const next = new Set(prev);
-      if (next.has(postId)) next.delete(postId);
-      else next.add(postId);
-      return next;
-    });
+  const handleLikeToggle = async (postId: string) => {
+    try {
+      const res = await toggleLikePost(postId);
+      setPosts((prev) => {
+        if (activeTab === 'liked') {
+          return prev.filter((p) => p._id !== postId);
+        }
+        return prev.map((p) =>
+          p._id === postId ? { ...p, isLiked: res.isLiked, likes: res.likes } : p
+        );
+      });
+    } catch {
+      // silent
+    }
   };
 
   return (
     <div className="max-w-6xl mx-auto pb-12">
       {/* Header */}
-      <div className="mb-10 text-center max-w-2xl mx-auto">
+      <div className="mb-8 text-center max-w-2xl mx-auto">
         <h1 className="text-4xl md:text-5xl font-serif italic text-white mb-4">Dòng Sự Kiện</h1>
         <p className="text-silver/70 text-lg">Cập nhật những hình ảnh và khoảnh khắc đẹp nhất từ các sự kiện nổi bật của đối tác ClickPick.</p>
       </div>
 
-      {/* Search & Filter */}
-      <div className="flex flex-col md:flex-row gap-4 mb-10 items-center justify-between sticky top-24 z-30 glass-panel p-4 rounded-2xl">
-        <div className="relative w-full md:w-80 shrink-0">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-silver/50" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm bài viết, vendor..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white text-sm placeholder:text-silver/50 focus:outline-none focus:border-cyan/50 focus:bg-white/10 transition-all shadow-inner"
-          />
-        </div>
+      {/* Tab Selection */}
+      <div className="flex justify-center gap-4 mb-8">
+        <button
+          onClick={() => setActiveTab('all')}
+          className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all ${activeTab === 'all'
+              ? 'bg-cyan text-navy shadow-[0_0_15px_rgba(0,212,255,0.3)]'
+              : 'bg-white/5 border border-white/10 text-silver hover:bg-white/10'
+            }`}
+        >
+          Khám phá sự kiện
+        </button>
+        <button
+          onClick={() => setActiveTab('liked')}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold transition-all ${activeTab === 'liked'
+              ? 'bg-cyan text-navy shadow-[0_0_15px_rgba(0,212,255,0.3)]'
+              : 'bg-white/5 border border-white/10 text-silver hover:bg-white/10'
+            }`}
+        >
+          <Heart className="w-4 h-4 fill-current" />
+          Yêu thích của tôi
+        </button>
+      </div>
 
-        <div className="flex gap-2 overflow-x-auto w-full pb-2 md:pb-0 scrollbar-hide">
-          {EVENT_TYPES.map((type) => (
-            <button
-              key={type}
-              onClick={() => setFilterType(type)}
+      {/* Search & Filter - show only on 'all' tab */}
+      {activeTab === 'all' && (
+        <div className="flex flex-col md:flex-row gap-4 mb-10 items-center justify-between sticky top-24 z-30 glass-panel p-4 rounded-2xl">
+          <div className="relative w-full md:w-80 shrink-0">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-silver/50" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm bài viết, vendor..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white text-sm placeholder:text-silver/50 focus:outline-none focus:border-cyan/50 focus:bg-white/10 transition-all shadow-inner"
+            />
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto w-full pb-2 md:pb-0 scrollbar-hide">
+            {EVENT_TYPES.map((type) => (
+              <button
+                key={type}
+                onClick={() => setFilterType(type)}
               className={`shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${filterType === type
-                  ? 'bg-cyan text-navy shadow-[0_0_15px_rgba(0,212,255,0.3)]'
-                  : 'bg-white/5 border border-white/10 text-silver hover:bg-white/10 hover:text-white'
+                ? 'bg-cyan text-navy shadow-[0_0_15px_rgba(0,212,255,0.3)]'
+                : 'bg-white/5 border border-white/10 text-silver hover:bg-white/10 hover:text-white'
                 }`}
             >
               {type}
@@ -151,6 +189,7 @@ export default function Timeline() {
           ))}
         </div>
       </div>
+      )}
 
       {/* Posts Feed */}
       {loading ? (
@@ -214,8 +253,8 @@ export default function Timeline() {
               {post.images.length > 0 && (
                 <div className="px-5 pb-5">
                   <div className={`grid gap-2 rounded-2xl overflow-hidden ${post.images.length === 1 ? 'grid-cols-1' :
-                      post.images.length === 2 ? 'grid-cols-2 h-48' :
-                        post.images.length >= 3 ? 'grid-cols-2 h-64' : ''
+                    post.images.length === 2 ? 'grid-cols-2 h-48' :
+                      post.images.length >= 3 ? 'grid-cols-2 h-64' : ''
                     }`}>
                     {post.images.slice(0, 3).map((img, i) => (
                       <div
@@ -247,12 +286,12 @@ export default function Timeline() {
               {/* Post Actions */}
               <div className="flex items-center gap-4 px-5 py-4 border-t border-white/5 bg-white/[0.01]">
                 <button
-                  onClick={() => toggleLike(post._id)}
-                  className={`flex items-center gap-2 text-sm font-semibold transition-all duration-300 ${likedPosts.has(post._id) ? 'text-red-400 drop-shadow-[0_0_10px_rgba(248,113,113,0.5)]' : 'text-silver/60 hover:text-red-400 hover:bg-red-400/10 px-3 py-1.5 -ml-3 rounded-full'
+                  onClick={() => handleLikeToggle(post._id)}
+                  className={`flex items-center gap-2 text-sm font-semibold transition-all duration-300 ${post.isLiked ? 'text-red-400 drop-shadow-[0_0_10px_rgba(248,113,113,0.5)]' : 'text-silver/60 hover:text-red-400 hover:bg-red-400/10 px-3 py-1.5 -ml-3 rounded-full'
                     }`}
                 >
-                  <Heart className={`w-5 h-5 ${likedPosts.has(post._id) ? 'fill-current scale-110' : 'scale-100'}`} />
-                  <span>{post.likes + (likedPosts.has(post._id) ? 1 : 0)}</span>
+                  <Heart className={`w-5 h-5 ${post.isLiked ? 'fill-current scale-110' : 'scale-100'}`} />
+                  <span>{post.likes}</span>
                 </button>
               </div>
             </motion.article>

@@ -3,7 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Compass, CalendarDays, Rss, ArrowRight, Star, Users, MapPin, Loader2, Heart, Store } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ExploreCategoryItem, getExploreCategories } from '../../services/exploreApi';
-import { getTimelinePosts, Post } from '../../services/postApi';
+import { getTimelinePosts, Post, toggleLikePost } from '../../services/postApi';
+import { getMyBookings } from '../../services/bookingsApi';
 import { useAuthStore } from '../../store/authStore';
 import VendorStoryRail from '../../components/customer/VendorStoryRail';
 import EventFeedCard from '../../components/customer/EventFeedCard';
@@ -12,12 +13,8 @@ import TrendingVendors from '../../components/customer/TrendingVendors';
 const EVENT_TYPES = [
   'Tất cả',
   'Tiệc sinh nhật',
-  'Tiệc cưới',
-  'Hội nghị',
-  'Workshop',
-  'Lễ tốt nghiệp',
   'Tiệc công ty',
-  'Sự kiện khác',
+  'Hội nghị',
 ];
 
 export default function Explore() {
@@ -31,7 +28,26 @@ export default function Explore() {
   const [totalPages, setTotalPages] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [filterType, setFilterType] = useState('Tất cả');
-  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const [bookingStats, setBookingStats] = useState({ pending: 0, completed: 0 });
+
+  useEffect(() => {
+    if (user) {
+      getMyBookings()
+        .then((res) => {
+          const bookingsList = res?.data?.bookings || [];
+          const getStatusGroup = (status: string) => {
+            if (['completed'].includes(status)) return 'completed';
+            if (['confirmed', 'customer_completed', 'vendor_completed'].includes(status)) return 'confirmed';
+            if (['cancelled', 'deposit_rejected'].includes(status)) return 'cancelled';
+            return 'pending'; // pending, waiting_deposit
+          };
+          const pending = bookingsList.filter((b: any) => getStatusGroup(b.status) === 'pending').length;
+          const completed = bookingsList.filter((b: any) => getStatusGroup(b.status) === 'completed').length;
+          setBookingStats({ pending, completed });
+        })
+        .catch(() => { });
+    }
+  }, [user]);
 
   useEffect(() => {
     getExploreCategories().then(data => setCategories(data || [])).catch(() => { });
@@ -59,13 +75,17 @@ export default function Explore() {
     fetchPosts(1, true, filterType);
   }, [filterType]);
 
-  const toggleLike = (postId: string) => {
-    setLikedPosts((prev) => {
-      const next = new Set(prev);
-      if (next.has(postId)) next.delete(postId);
-      else next.add(postId);
-      return next;
-    });
+  const toggleLike = async (postId: string) => {
+    try {
+      const res = await toggleLikePost(postId);
+      setPosts((prev) =>
+        prev.map((p) =>
+          p._id === postId ? { ...p, isLiked: res.isLiked, likes: res.likes } : p
+        )
+      );
+    } catch {
+      // silent
+    }
   };
 
   const totalBoothsCount = useMemo(() => categories.reduce((acc, cat) => acc + cat.count, 0), [categories]);
@@ -92,11 +112,11 @@ export default function Explore() {
             </div>
             <div className="mt-6 pt-4 border-t border-white/5 grid grid-cols-2 gap-4 text-center">
               <div>
-                <p className="text-xl font-bold text-white">0</p>
+                <p className="text-xl font-bold text-white">{bookingStats.pending}</p>
                 <p className="text-[10px] uppercase text-silver/60 tracking-wider">Đơn đang chờ</p>
               </div>
               <div>
-                <p className="text-xl font-bold text-white">0</p>
+                <p className="text-xl font-bold text-white">{bookingStats.completed}</p>
                 <p className="text-[10px] uppercase text-silver/60 tracking-wider">Hoàn tất</p>
               </div>
             </div>
@@ -155,8 +175,8 @@ export default function Explore() {
                 key={type}
                 onClick={() => setFilterType(type)}
                 className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all ${filterType === type
-                    ? 'bg-cyan text-navy shadow-[0_0_15px_rgba(0,212,255,0.3)]'
-                    : 'bg-white/5 text-silver hover:bg-white/10'
+                  ? 'bg-cyan text-navy shadow-[0_0_15px_rgba(0,212,255,0.3)]'
+                  : 'bg-white/5 text-silver hover:bg-white/10'
                   }`}
               >
                 {type}
@@ -183,7 +203,7 @@ export default function Explore() {
                     key={post._id}
                     post={post}
                     onLike={toggleLike}
-                    isLiked={likedPosts.has(post._id)}
+                    isLiked={post.isLiked}
                   />
                 ))}
 
@@ -203,17 +223,6 @@ export default function Explore() {
 
         {/* RIGHT PANEL (Desktop) */}
         <aside className="hidden lg:block space-y-6 sticky top-24 h-fit">
-          {/* Quick Stats */}
-          <div className="glass-panel p-5 rounded-2xl border border-white/5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-cyan/10 flex items-center justify-center text-cyan shrink-0">
-              <Store className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-white leading-none mb-1">{totalBoothsCount > 0 ? totalBoothsCount : '...'}</p>
-              <p className="text-xs text-silver/60 uppercase tracking-wider">Gian hàng đối tác</p>
-            </div>
-          </div>
-
           {/* Trending Vendors */}
           <TrendingVendors />
 

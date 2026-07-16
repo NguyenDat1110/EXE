@@ -314,3 +314,85 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
     res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
   }
 };
+
+export const googleLogin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { accessToken } = req.body;
+    if (!accessToken) {
+      res.status(400).json({ message: 'Thiếu Google Access Token.' });
+      return;
+    }
+
+    // Verify token with Google Userinfo API
+    const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    if (!googleRes.ok) {
+      res.status(400).json({ message: 'Google Access Token không hợp lệ.' });
+      return;
+    }
+
+    const payload: any = await googleRes.json();
+    const email = payload.email?.toLowerCase();
+    const name = payload.name || 'Google User';
+    const avatar = payload.picture || '';
+
+    if (!email) {
+      res.status(400).json({ message: 'Không lấy được email từ tài khoản Google.' });
+      return;
+    }
+
+    // Find or create user with role customer
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      const randomPassword = crypto.randomBytes(16).toString('hex');
+      const passwordHash = await bcrypt.hash(randomPassword, 10);
+      user = await User.create({
+        name,
+        email,
+        passwordHash,
+        phone: '',
+        dateOfBirth: '',
+        address: '',
+        role: 'customer',
+        avatar,
+        isEmailVerified: true
+      });
+    } else {
+      if (!user.isActive) {
+        res.status(403).json({ message: 'Tài khoản của bạn đã bị khóa.' });
+        return;
+      }
+      // Update avatar if not set
+      if (!user.avatar && avatar) {
+        user.avatar = avatar;
+        await user.save();
+      }
+    }
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role, email: user.email },
+      process.env.JWT_SECRET || 'clickpick_super_secret_key_123456',
+      { expiresIn: '7d' }
+    );
+
+    res.status(200).json({
+      message: 'Đăng nhập Google thành công!',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        role: user.role,
+        isEmailVerified: user.isEmailVerified
+      }
+    });
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
+  }
+};

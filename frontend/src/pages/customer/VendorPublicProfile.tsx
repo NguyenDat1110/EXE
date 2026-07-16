@@ -4,7 +4,7 @@ import { getVendorPosts, Post } from '../../services/postApi';
 import { Star, MapPin, CalendarCheck, Shield, ChevronLeft, CalendarDays, Rss } from 'lucide-react';
 import EventFeedCard from '../../components/customer/EventFeedCard';
 
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
 const getAvatarInitial = (name: string) => name?.[0]?.toUpperCase() || 'V';
 
 export default function VendorPublicProfile() {

@@ -3,7 +3,7 @@ import { Plus, Image, Trash2, X, Loader2, Calendar, Edit3, CheckCircle } from 'l
 import { createPost, getMyPosts, deletePost, updatePost, Post } from '../../services/postApi';
 import { ImageLightbox } from '../../components/ui/ImageLightbox';
 
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
 
 const EVENT_TYPES = [
   'Tiệc sinh nhật',

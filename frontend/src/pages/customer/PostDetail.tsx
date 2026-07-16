@@ -4,7 +4,7 @@ import { getPostById, Post } from '../../services/postApi';
 import { Heart, MessageCircle, Share2, ArrowLeft, CalendarCheck, MapPin, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
 
 const formatDate = (iso: string) => {
   const d = new Date(iso);

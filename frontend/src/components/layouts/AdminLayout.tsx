@@ -14,13 +14,13 @@ export function AdminLayout() {
   const location = useLocation();
 
   const menuItems = [
-    { label: 'Tổng quan (UC-37)', path: '/admin/dashboard', icon: Settings },
-    { label: 'Quản lý người dùng (UC-38)', path: '/admin/users', icon: Users },
+    { label: 'Tổng quan', path: '/admin/dashboard', icon: Settings },
+    { label: 'Quản lý người dùng', path: '/admin/users', icon: Users },
     { label: 'Duyệt Vendor', path: '/admin/vendors', icon: CheckCircle },
-    { label: 'Quản lý Package (UC-39)', path: '/admin/packages', icon: Package },
-    { label: 'Xử lý khiếu nại (UC-40)', path: '/admin/complaints', icon: MessageSquareWarning },
-    { label: 'Quản lý Subscription (UC-41)', path: '/admin/subscriptions', icon: Crown },
-    { label: 'Log hoạt động (UC-42)', path: '/admin/logs', icon: Activity },
+    { label: 'Quản lý Package', path: '/admin/packages', icon: Package },
+    { label: 'Xử lý khiếu nại', path: '/admin/complaints', icon: MessageSquareWarning },
+    { label: 'Quản lý Subscription', path: '/admin/subscriptions', icon: Crown },
+    { label: 'Log hoạt động', path: '/admin/logs', icon: Activity },
     { label: 'Bài viết', path: '/admin/articles', icon: FileText },
   ];
 
@@ -59,19 +59,6 @@ export function AdminLayout() {
           })}
         </nav>
 
-        {/* Sidebar Footer */}
-        <div className="p-6 border-t border-white/10">
-          <button
-            onClick={() => {
-              logout();
-              navigate('/');
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
-          >
-            <LogOut className="w-5 h-5" />
-            Đăng Xuất
-          </button>
-        </div>
       </aside>
 
       {/* Sidebar - Mobile */}
@@ -120,18 +107,6 @@ export function AdminLayout() {
                 })}
               </nav>
 
-              <div className="p-6 border-t border-white/10">
-                <button
-                  onClick={() => {
-                    logout();
-                    navigate('/');
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
-                >
-                  <LogOut className="w-5 h-5" />
-                  Đăng Xuất
-                </button>
-              </div>
             </motion.aside>
           </>
         )}

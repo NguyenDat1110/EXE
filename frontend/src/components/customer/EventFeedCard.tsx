@@ -62,7 +62,7 @@ export default function EventFeedCard({ post, onLike, isLiked = false }: EventFe
           >
             {post.vendorAvatar ? (
               <img
-                src={`${BASE_URL}${post.vendorAvatar}`}
+                src={post.vendorAvatar?.startsWith('http') ? post.vendorAvatar : `${BASE_URL}${post.vendorAvatar}`}
                 alt={post.vendorName}
                 className="w-10 h-10 rounded-full object-cover border border-white/10"
                 onError={(e) => { (e.target as HTMLImageElement).src = ''; }}
@@ -127,7 +127,7 @@ export default function EventFeedCard({ post, onLike, isLiked = false }: EventFe
                 }`}
               >
                 <img
-                  src={`${BASE_URL}${img}`}
+                  src={img.startsWith('http') ? img : `${BASE_URL}${img}`}
                   alt=""
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                   onError={(e) => { (e.target as HTMLImageElement).closest('div')!.style.display = 'none'; }}
@@ -196,7 +196,7 @@ export default function EventFeedCard({ post, onLike, isLiked = false }: EventFe
             onClick={closeLightbox}
           >
             <img
-              src={`${BASE_URL}${lightbox.images[lightbox.index]}`}
+              src={lightbox.images[lightbox.index]?.startsWith('http') ? lightbox.images[lightbox.index] : `${BASE_URL}${lightbox.images[lightbox.index]}`}
               alt=""
               className="max-w-full max-h-full object-contain rounded-xl"
             />

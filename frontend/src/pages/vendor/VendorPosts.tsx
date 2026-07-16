@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Image, Trash2, X, Loader2, Calendar, Edit3, CheckCircle } from 'lucide-react';
 import { createPost, getMyPosts, deletePost, updatePost, Post } from '../../services/postApi';
 import { ImageLightbox } from '../../components/ui/ImageLightbox';
+import { uploadToCloudinary } from '../../services/cloudinary';
 
 const BASE_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
 
@@ -35,7 +36,7 @@ export default function VendorPosts() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
 
-  const openLightbox = (images: string[], index: number) => setLightbox({ images: images.map((img) => `${BASE_URL}${img}`), index });
+  const openLightbox = (images: string[], index: number) => setLightbox({ images: images.map((img) => img.startsWith('http') ? img : `${BASE_URL}${img}`), index });
   const closeLightbox = () => setLightbox(null);
   const showPrevLightbox = () => setLightbox((prev) => (prev ? { ...prev, index: (prev.index - 1 + prev.images.length) % prev.images.length } : prev));
   const showNextLightbox = () => setLightbox((prev) => (prev ? { ...prev, index: (prev.index + 1) % prev.images.length } : prev));
@@ -100,22 +101,28 @@ export default function VendorPosts() {
     setError('');
 
     try {
+      const uploadedUrls: string[] = [];
+      if (selectedFiles.length > 0) {
+        for (const file of selectedFiles) {
+          const res = await uploadToCloudinary(file, 'eventflow/posts');
+          uploadedUrls.push(res.secure_url);
+        }
+      }
+
+      const finalImages = [...existingImages, ...uploadedUrls];
+      
+      const payload = {
+        title: title.trim(),
+        content: content.trim(),
+        eventType,
+        images: finalImages
+      };
+
       if (editingPost) {
-        const formData = new FormData();
-        formData.append('title', title.trim());
-        formData.append('content', content.trim());
-        if (eventType) formData.append('eventType', eventType);
-        formData.append('keepImages', JSON.stringify(existingImages));
-        selectedFiles.forEach((file) => formData.append('images', file));
-        await updatePost(editingPost._id, formData);
+        await updatePost(editingPost._id, payload);
         setSuccess('Cập nhật bài viết thành công!');
       } else {
-        const formData = new FormData();
-        formData.append('title', title.trim());
-        formData.append('content', content.trim());
-        if (eventType) formData.append('eventType', eventType);
-        selectedFiles.forEach((file) => formData.append('images', file));
-        await createPost(formData);
+        await createPost(payload);
         setSuccess('Đăng bài thành công!');
       }
       resetForm();
@@ -243,7 +250,7 @@ export default function VendorPosts() {
                   <div className="grid grid-cols-4 gap-2 mb-3">
                     {existingImages.map((src, i) => (
                       <div key={`old-${i}`} className="relative group aspect-square">
-                        <img src={`${BASE_URL}${src}`} alt="" className="w-full h-full object-cover rounded-lg" />
+                        <img src={src.startsWith('http') ? src : `${BASE_URL}${src}`} alt="" className="w-full h-full object-cover rounded-lg" />
                         <button
                           type="button"
                           onClick={() => removeExistingImage(i)}
@@ -372,7 +379,7 @@ export default function VendorPosts() {
                       className="w-full aspect-video rounded-xl overflow-hidden border border-white/10 hover:border-cyan/40 transition-colors"
                     >
                       <img
-                        src={`${BASE_URL}${img}`}
+                        src={img.startsWith('http') ? img : `${BASE_URL}${img}`}
                         alt=""
                         className="w-full h-full object-cover"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}

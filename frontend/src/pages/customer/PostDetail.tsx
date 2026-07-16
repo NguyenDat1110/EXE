@@ -70,7 +70,7 @@ export default function PostDetail() {
           <div className="flex items-center gap-4 cursor-pointer group" onClick={() => navigate(`/vendors/${post.vendorId}`)}>
             {post.vendorAvatar ? (
               <img
-                src={`${BASE_URL}${post.vendorAvatar}`}
+                src={post.vendorAvatar?.startsWith('http') ? post.vendorAvatar : `${BASE_URL}${post.vendorAvatar}`}
                 alt={post.vendorName}
                 className="w-14 h-14 rounded-full object-cover border-2 border-white/10 group-hover:border-cyan/50 transition-colors"
                 onError={(e) => { (e.target as HTMLImageElement).src = ''; }}
@@ -124,7 +124,7 @@ export default function PostDetail() {
                 }`}
               >
                 <img
-                  src={`${BASE_URL}${img}`}
+                  src={img.startsWith('http') ? img : `${BASE_URL}${img}`}
                   alt=""
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                   onError={(e) => { (e.target as HTMLImageElement).closest('div')!.style.display = 'none'; }}
@@ -181,7 +181,7 @@ export default function PostDetail() {
           >
             <button className="absolute top-6 right-6 text-white/50 hover:text-white p-2" onClick={closeLightbox}>Đóng</button>
             <img
-              src={`${BASE_URL}${lightbox.images[lightbox.index]}`}
+              src={lightbox.images[lightbox.index]?.startsWith('http') ? lightbox.images[lightbox.index] : `${BASE_URL}${lightbox.images[lightbox.index]}`}
               alt=""
               className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
             />

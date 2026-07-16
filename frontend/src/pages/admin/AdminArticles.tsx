@@ -30,7 +30,7 @@ export default function AdminArticles() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
 
-  const openLightbox = (images: string[], index: number) => setLightbox({ images: images.map((img) => `${BASE_URL}${img}`), index });
+  const openLightbox = (images: string[], index: number) => setLightbox({ images: images.map((img) => img.startsWith('http') ? img : `${BASE_URL}${img}`), index });
   const closeLightbox = () => setLightbox(null);
   const showPrev = () => setLightbox((prev) => (prev ? { ...prev, index: (prev.index - 1 + prev.images.length) % prev.images.length } : prev));
   const showNext = () => setLightbox((prev) => (prev ? { ...prev, index: (prev.index + 1) % prev.images.length } : prev));
@@ -154,7 +154,7 @@ export default function AdminArticles() {
                   <div className="shrink-0">
                     {post.vendorAvatar ? (
                       <img
-                        src={`${BASE_URL}${post.vendorAvatar}`}
+                        src={post.vendorAvatar?.startsWith('http') ? post.vendorAvatar : `${BASE_URL}${post.vendorAvatar}`}
                         alt={post.vendorName}
                         className="w-10 h-10 rounded-full object-cover border border-white/10"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -209,7 +209,7 @@ export default function AdminArticles() {
                             className="relative w-24 h-20 rounded-lg overflow-hidden shrink-0 border border-white/10 hover:border-cyan/40 transition-colors"
                           >
                             <img
-                              src={`${BASE_URL}${img}`}
+                              src={img.startsWith('http') ? img : `${BASE_URL}${img}`}
                               alt=""
                               className="w-full h-full object-cover"
                               onError={(e) => { (e.target as HTMLImageElement).closest('button')!.style.display = 'none'; }}

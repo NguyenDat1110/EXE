@@ -180,7 +180,7 @@ export default function Timeline() {
               <div className="flex items-center gap-3 p-5">
                 {post.vendorAvatar ? (
                   <img
-                    src={`${BASE_URL}${post.vendorAvatar}`}
+                    src={post.vendorAvatar?.startsWith('http') ? post.vendorAvatar : `${BASE_URL}${post.vendorAvatar}`}
                     alt={post.vendorName}
                     className="w-12 h-12 rounded-2xl object-cover border border-white/10 shadow-lg"
                     onError={(e) => { (e.target as HTMLImageElement).src = ''; }}
@@ -225,7 +225,7 @@ export default function Timeline() {
                           }`}
                       >
                         <img
-                          src={`${BASE_URL}${img}`}
+                          src={img.startsWith('http') ? img : `${BASE_URL}${img}`}
                           alt=""
                           className="w-full h-full object-cover transition-transform duration-700 group-hover/img:scale-110"
                           onError={(e) => { (e.target as HTMLImageElement).closest('div')!.style.display = 'none'; }}
@@ -314,7 +314,7 @@ export default function Timeline() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              src={`${BASE_URL}${lightbox.images[lightbox.index]}`}
+              src={lightbox.images[lightbox.index]?.startsWith('http') ? lightbox.images[lightbox.index] : `${BASE_URL}${lightbox.images[lightbox.index]}`}
               alt=""
               onClick={(e) => e.stopPropagation()}
               className="max-w-full max-h-full object-contain rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)]"

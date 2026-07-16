@@ -64,7 +64,7 @@ export default function VendorPublicProfile() {
           <div className="w-32 h-32 rounded-full border-4 border-navy bg-slate-custom shrink-0 overflow-hidden shadow-2xl">
             {vendor.avatar ? (
               <img 
-                src={`${BASE_URL}${vendor.avatar}`} 
+                src={vendor.avatar?.startsWith('http') ? vendor.avatar : `${BASE_URL}${vendor.avatar}`} 
                 alt={vendor.companyName} 
                 className="w-full h-full object-cover"
                 onError={(e) => { (e.target as HTMLImageElement).src = ''; }}

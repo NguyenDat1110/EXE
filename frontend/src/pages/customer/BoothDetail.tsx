@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Mail, MapPin, Phone, Star, ChevronRight, CheckCircle2, Building, ShieldCheck, Users, Clock, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ImageLightbox } from '../../components/ui/ImageLightbox';
 import {
   ExploreBoothPackage,
   getBoothDetail,
@@ -60,6 +61,12 @@ export default function BoothDetail() {
   const [selectedPackageId, setSelectedPackageId] = useState<string>('');
   const [contactUnlocked, setContactUnlocked] = useState(false);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
+
+  const openLightbox = (images: string[], index: number) => setLightbox({ images, index });
+  const closeLightbox = () => setLightbox(null);
+  const showPrevLightbox = () => setLightbox((prev) => prev ? { ...prev, index: (prev.index - 1 + prev.images.length) % prev.images.length } : null);
+  const showNextLightbox = () => setLightbox((prev) => prev ? { ...prev, index: (prev.index + 1) % prev.images.length } : null);
 
   useEffect(() => {
     if (!boothId) return;
@@ -176,20 +183,25 @@ export default function BoothDetail() {
         </div>
       </div>
 
-  {/* Image Mosaic Gallery */ }
-  {
-    galleryImages.length > 0 && (
-      <div className={`grid grid-cols-1 md:grid-cols-4 ${galleryImages.length === 1 ? 'grid-rows-1' : 'grid-rows-2'} gap-2 h-[400px] md:h-[500px] rounded-3xl overflow-hidden`}>
-        <div className={`${galleryImages.length === 1 ? 'md:col-span-4' :
-          galleryImages.length === 2 ? 'md:col-span-3' :
-            'md:col-span-2'
-          } ${galleryImages.length === 1 ? 'row-span-1' : 'row-span-2'} relative group cursor-pointer`}>
-          <img src={galleryImages[0]} alt="Cover" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-          <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
+      {/* Image Mosaic Gallery */}
+      {
+        galleryImages.length > 0 && (
+          <div className={`grid grid-cols-1 md:grid-cols-4 ${galleryImages.length === 1 ? 'grid-rows-1' : 'grid-rows-2'} gap-2 h-[400px] md:h-[500px] rounded-3xl overflow-hidden`}>
+            <div
+              onClick={() => openLightbox(galleryImages, 0)}
+              className={`${galleryImages.length === 1 ? 'md:col-span-4' :
+                galleryImages.length === 2 ? 'md:col-span-3' :
+                  'md:col-span-2'
+                } ${galleryImages.length === 1 ? 'row-span-1' : 'row-span-2'} relative group cursor-pointer`}>
+              <img src={galleryImages[0]} alt="Cover" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
             </div>
             {galleryImages.slice(1, 5).map((img, idx) => (
-              <div key={idx} className={`relative hidden md:block group cursor-pointer overflow-hidden ${galleryImages.length === 2 ? 'md:col-span-1 row-span-2' : ''
-                }`}>
+              <div
+                key={idx}
+                onClick={() => openLightbox(galleryImages, idx + 1)}
+                className={`relative hidden md:block group cursor-pointer overflow-hidden ${galleryImages.length === 2 ? 'md:col-span-1 row-span-2' : ''
+                  }`}>
                 <img src={img} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
                 {idx === 3 && galleryImages.length > 5 && (
@@ -200,273 +212,293 @@ export default function BoothDetail() {
               </div>
             ))}
           </div>
-      )}
+        )}
 
-          {/* Main Content Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 xl:gap-12 items-start relative">
+      {/* Main Content Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 xl:gap-12 items-start relative">
 
-            {/* Left Column: Details */}
-            <div className="space-y-12">
+        {/* Left Column: Details */}
+        <div className="space-y-12 min-w-0">
 
-              {/* About */}
-              <section>
-                <h2 className="text-2xl font-bold text-white mb-4">Giới thiệu về không gian</h2>
-                <div className="text-silver/80 leading-relaxed whitespace-pre-wrap text-lg">
-                  {booth.description || 'Chưa có thông tin mô tả chi tiết cho gian hàng này.'}
-                </div>
-              </section>
+          {/* About */}
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">Giới thiệu về không gian</h2>
+            <div className="text-silver/80 leading-relaxed whitespace-pre-wrap text-lg">
+              {booth.description || 'Chưa có thông tin mô tả chi tiết cho gian hàng này.'}
+            </div>
+          </section>
 
-              <hr className="border-white/10" />
+          <hr className="border-white/10" />
 
-              {/* Packages */}
-              <section>
-                <h2 className="text-2xl font-bold text-white mb-6">Các gói dịch vụ</h2>
+          {/* Packages */}
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-6">Các gói dịch vụ</h2>
 
-                {/* Package Tabs */}
-                <div className="flex overflow-x-auto gap-2 pb-4 scrollbar-hide">
-                  {packages.map((pkg) => (
-                    <button
-                      key={pkg._id}
-                      onClick={() => setSelectedPackageId(pkg._id)}
-                      className={`px-5 py-3 rounded-xl font-semibold whitespace-nowrap transition-all ${selectedPackageId === pkg._id
-                        ? 'bg-white text-navy shadow-lg scale-105 transform origin-bottom'
-                        : 'bg-white/5 text-silver hover:bg-white/10 border border-white/10'
-                        }`}
-                    >
-                      {pkg.name}
-                    </button>
-                  ))}
-                </div>
-
-                <AnimatePresence mode="wait">
-                  {selectedPackage && (
-                    <motion.div
-                      key={selectedPackage._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="glass-panel rounded-3xl p-6 md:p-8 border border-white/10"
-                    >
-                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
-                        <div>
-                          <h3 className="text-3xl font-bold text-white mb-3">{selectedPackage.name}</h3>
-                          <p className="text-silver/70 max-w-xl">{selectedPackage.description}</p>
-                        </div>
-                        <div className="bg-cyan/10 border border-cyan/20 p-4 rounded-2xl md:text-right shrink-0">
-                          <p className="text-sm font-semibold text-cyan uppercase tracking-wider mb-1">Trọn gói từ</p>
-                          <p className="text-3xl font-bold text-white">{toCurrency(selectedPackage.price)}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        <div className="bg-white/5 rounded-2xl p-4 flex flex-col gap-2 border border-white/5">
-                          <Clock className="w-5 h-5 text-cyan" />
-                          <span className="text-xs text-silver/60 uppercase">Thời lượng</span>
-                          <span className="font-semibold text-white">{selectedPackage.serviceDuration ? formatDuration(selectedPackage.serviceDuration) : '--'}</span>
-                        </div>
-                        <div className="bg-white/5 rounded-2xl p-4 flex flex-col gap-2 border border-white/5">
-                          <Users className="w-5 h-5 text-cyan" />
-                          <span className="text-xs text-silver/60 uppercase">Tối đa</span>
-                          <span className="font-semibold text-white">{selectedPackage.maxParticipants ? `${selectedPackage.maxParticipants} người` : '--'}</span>
-                        </div>
-                        <div className="bg-white/5 rounded-2xl p-4 flex flex-col gap-2 border border-white/5">
-                          <Building className="w-5 h-5 text-cyan" />
-                          <span className="text-xs text-silver/60 uppercase">Tối thiểu</span>
-                          <span className="font-semibold text-white">{selectedPackage.minParticipants ? `${selectedPackage.minParticipants} người` : '--'}</span>
-                        </div>
-                        <div className="bg-white/5 rounded-2xl p-4 flex flex-col gap-2 border border-white/5">
-                          <ShieldCheck className="w-5 h-5 text-cyan" />
-                          <span className="text-xs text-silver/60 uppercase">Cọc trước</span>
-                          <span className="font-semibold text-white">{toCurrency(selectedPackage.depositAmount)}</span>
-                        </div>
-                      </div>
-
-                      {selectedPackage.includedServices && selectedPackage.includedServices.length > 0 && (
-                        <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
-                          <h4 className="font-bold text-white mb-4">Dịch vụ bao gồm</h4>
-                          <ul className="grid sm:grid-cols-2 gap-3">
-                            {selectedPackage.includedServices.map((service, idx) => (
-                              <li key={idx} className="flex items-start gap-2 text-silver/90">
-                                <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
-                                <span>{service}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {selectedPackageImages.length > 0 && (
-                        <div className="mt-8">
-                          <h4 className="font-bold text-white mb-4">Hình ảnh minh họa</h4>
-                          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
-                            {selectedPackageImages.map((img, idx) => (
-                              <img
-                                key={idx}
-                                src={img}
-                                alt={`${selectedPackage.name} ${idx + 1}`}
-                                className="w-64 h-48 object-cover rounded-2xl shrink-0 snap-start border border-white/10"
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </section>
-
-              <hr className="border-white/10" />
-
-              {/* Reviews */}
-              <section>
-                <div className="flex items-center gap-3 mb-8">
-                  <Star className="w-8 h-8 text-yellow-400 fill-current" />
-                  <h2 className="text-2xl md:text-3xl font-bold text-white">
-                    {vendor.averageRating > 0 ? vendor.averageRating.toFixed(1) : 'Chưa có đánh giá'}
-                    <span className="text-lg text-silver/50 font-normal ml-2">({reviews.length} đánh giá)</span>
-                  </h2>
-                </div>
-
-                {reviews.length > 0 && (
-                  <div className="grid md:grid-cols-[1fr_2fr] gap-8 mb-10 items-center">
-                    <div className="space-y-3">
-                      {ratingCounts.map(({ star, count }) => (
-                        <div key={star} className="flex items-center gap-3">
-                          <span className="text-sm font-medium w-3">{star}</span>
-                          <Star className="w-3.5 h-3.5 text-silver/40" />
-                          <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-yellow-400 rounded-full"
-                              style={{ width: `${(count / maxRatingCount) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="bg-white/5 rounded-2xl p-6 border border-white/5 text-silver/80 text-sm">
-                      <span className="font-bold text-white block mb-2">Thông tin minh bạch</span>
-                      100% đánh giá đều từ khách hàng đã trải nghiệm và thanh toán qua nền tảng.
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid md:grid-cols-2 gap-6">
-                  {reviews.map((rev) => (
-                    <div key={rev._id} className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl space-y-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan/40 to-blue-600/40 p-0.5">
-                            <img
-                              src={rev.customerId?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rev.customerId?._id}`}
-                              alt={rev.customerId?.name}
-                              className="w-full h-full rounded-full object-cover"
-                            />
-                          </div>
-                          <div>
-                            <p className="font-bold text-white text-sm">{rev.customerId?.name || 'Khách hàng'}</p>
-                            <p className="text-xs text-silver/50">{new Date(rev.createdAt).toLocaleDateString('vi-VN')}</p>
-                          </div>
-                        </div>
-                        <StarRating rating={rev.rating} />
-                      </div>
-
-                      {rev.comment && <p className="text-silver/90 text-sm leading-relaxed">{rev.comment}</p>}
-
-                      {rev.vendorReply && (
-                        <div className="mt-4 p-4 bg-cyan/5 border border-cyan/10 rounded-2xl rounded-tl-none">
-                          <p className="text-xs font-bold text-cyan mb-1 flex items-center gap-1">
-                            <ShieldCheck className="w-3 h-3" /> Phản hồi từ Vendor
-                          </p>
-                          <p className="text-sm text-silver/80">{rev.vendorReply}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
+            {/* Package Tabs */}
+            <div className="flex overflow-x-auto gap-2 pb-4 scrollbar-hide">
+              {packages.map((pkg) => (
+                <button
+                  key={pkg._id}
+                  onClick={() => setSelectedPackageId(pkg._id)}
+                  className={`px-5 py-3 rounded-xl font-semibold whitespace-nowrap transition-all ${selectedPackageId === pkg._id
+                    ? 'bg-white text-navy shadow-lg scale-105 transform origin-bottom'
+                    : 'bg-white/5 text-silver hover:bg-white/10 border border-white/10'
+                    }`}
+                >
+                  {pkg.name}
+                </button>
+              ))}
             </div>
 
-            {/* Right Column: Sticky Sidebar */}
-            <aside className="lg:sticky top-24 space-y-6">
-              <div className="glass-panel p-6 rounded-3xl border border-white/10 shadow-2xl">
-                <h3 className="text-xl font-bold text-white mb-6">Tóm tắt đơn đặt</h3>
-
-                <div className="space-y-4 mb-6">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-silver/70">Gói đã chọn</span>
-                    <span className="font-semibold text-white max-w-[150px] text-right truncate">{selectedPackage?.name || '--'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-silver/70">Giá trọn gói</span>
-                    <span className="font-bold text-white">{selectedPackage ? toCurrency(selectedPackage.price) : '--'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm py-3 border-y border-white/10">
-                    <span className="text-silver/70 font-medium">Đặt cọc ngay</span>
-                    <span className="font-bold text-cyan text-lg">{selectedPackage ? toCurrency(selectedPackage.depositAmount) : '--'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-silver/50">
-                    <span>Còn lại thanh toán sau</span>
-                    <span>{selectedPackage ? toCurrency(selectedPackage.price - selectedPackage.depositAmount) : '--'}</span>
-                  </div>
-                </div>
-
-                <Link
-                  to={`/booths/${booth._id}/book?packageId=${selectedPackageId}`}
-                  className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold uppercase tracking-wider transition-all shadow-lg ${selectedPackageId
-                    ? 'bg-cyan text-navy hover:bg-cyan/90 shadow-cyan/20 hover:shadow-cyan/40'
-                    : 'bg-white/10 text-white/40 cursor-not-allowed'
-                    }`}
-                  onClick={(e) => { if (!selectedPackageId) e.preventDefault(); }}
+            <AnimatePresence mode="wait">
+              {selectedPackage && (
+                <motion.div
+                  key={selectedPackage._id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="glass-panel rounded-3xl p-6 md:p-8 border border-white/10"
                 >
-                  Tiếp tục đặt lịch <ChevronRight className="w-5 h-5" />
-                </Link>
-                <p className="text-center text-xs text-silver/50 mt-4">Bạn chưa bị trừ tiền ở bước này.</p>
-              </div>
-
-              <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-5">
-                <div className="flex items-center gap-4 border-b border-white/10 pb-4">
-                  <img
-                    src={vendor.avatar || `https://api.dicebear.com/7.x/shapes/svg?seed=${vendor._id}`}
-                    alt={vendor.name}
-                    className="w-16 h-16 rounded-2xl object-cover border border-white/10"
-                  />
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-silver/50">Nhà cung cấp</p>
-                    <Link to={`/vendor/${vendor._id}`} className="font-bold text-white hover:text-cyan transition-colors line-clamp-1">{vendor.name}</Link>
-                    <div className="flex items-center gap-1 mt-1 text-xs text-yellow-400">
-                      <Star className="w-3 h-3 fill-current" /> {vendor.averageRating > 0 ? vendor.averageRating.toFixed(1) : 'Mới'}
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
+                    <div>
+                      <h3 className="text-3xl font-bold text-white mb-3">{selectedPackage.name}</h3>
+                      <p className="text-silver/70 max-w-xl">{selectedPackage.description}</p>
+                    </div>
+                    <div className="bg-cyan/10 border border-cyan/20 p-4 rounded-2xl md:text-right shrink-0">
+                      <p className="text-sm font-semibold text-cyan uppercase tracking-wider mb-1">Trọn gói từ</p>
+                      <p className="text-3xl font-bold text-white">{toCurrency(selectedPackage.price)}</p>
                     </div>
                   </div>
-                </div>
 
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center gap-3 text-silver/80">
-                    <MapPin className="w-4 h-4 text-cyan" />
-                    <span className="truncate">{vendor.address || 'Chưa cập nhật địa chỉ'}</span>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div className="bg-white/5 rounded-2xl p-4 flex flex-col gap-2 border border-white/5">
+                      <Clock className="w-5 h-5 text-cyan" />
+                      <span className="text-xs text-silver/60 uppercase">Thời lượng</span>
+                      <span className="font-semibold text-white">{selectedPackage.serviceDuration ? formatDuration(selectedPackage.serviceDuration) : '--'}</span>
+                    </div>
+                    <div className="bg-white/5 rounded-2xl p-4 flex flex-col gap-2 border border-white/5">
+                      <Users className="w-5 h-5 text-cyan" />
+                      <span className="text-xs text-silver/60 uppercase">Tối đa</span>
+                      <span className="font-semibold text-white">{selectedPackage.maxParticipants ? `${selectedPackage.maxParticipants} người` : '--'}</span>
+                    </div>
+                    <div className="bg-white/5 rounded-2xl p-4 flex flex-col gap-2 border border-white/5">
+                      <Building className="w-5 h-5 text-cyan" />
+                      <span className="text-xs text-silver/60 uppercase">Tối thiểu</span>
+                      <span className="font-semibold text-white">{selectedPackage.minParticipants ? `${selectedPackage.minParticipants} người` : '--'}</span>
+                    </div>
+                    <div className="bg-white/5 rounded-2xl p-4 flex flex-col gap-2 border border-white/5">
+                      <ShieldCheck className="w-5 h-5 text-cyan" />
+                      <span className="text-xs text-silver/60 uppercase">Cọc trước</span>
+                      <span className="font-semibold text-white">{toCurrency(selectedPackage.depositAmount)}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 text-silver/80">
-                    <Phone className="w-4 h-4 text-cyan" />
-                    <span>{contactUnlocked ? vendor.phone || '--' : 'Bảo mật (Chờ đặt cọc)'}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-silver/80">
-                    <Mail className="w-4 h-4 text-cyan" />
-                    <span className="truncate">{contactUnlocked ? vendor.email || '--' : 'Bảo mật (Chờ đặt cọc)'}</span>
-                  </div>
-                </div>
 
-                <a
-                  href={contactUnlocked ? `mailto:${vendor.email}?subject=Tư vấn gói ${encodeURIComponent(selectedPackage?.name || booth.name)}` : '#'}
-                  onClick={(e) => { if (!contactUnlocked) e.preventDefault(); }}
-                  className={`block w-full text-center py-3 rounded-xl text-sm font-semibold border transition-colors ${contactUnlocked
-                    ? 'border-cyan text-cyan hover:bg-cyan/10'
-                    : 'border-white/10 text-white/30 cursor-not-allowed bg-white/5'
-                    }`}
-                >
-                  Liên hệ nhà cung cấp
-                </a>
+                  {selectedPackage.includedServices && selectedPackage.includedServices.length > 0 && (
+                    <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
+                      <h4 className="font-bold text-white mb-4">Dịch vụ bao gồm</h4>
+                      <ul className="grid sm:grid-cols-2 gap-3">
+                        {selectedPackage.includedServices.map((service, idx) => (
+                          <li key={idx} className="flex items-start gap-2 text-silver/90">
+                            <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
+                            <span>{service}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {selectedPackageImages.length > 0 && (
+                    <div className="mt-8">
+                      <h4 className="font-bold text-white mb-4">Hình ảnh minh họa</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        {selectedPackageImages.slice(0, 4).map((img, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => openLightbox(selectedPackageImages, idx)}
+                            className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 group cursor-pointer"
+                          >
+                            <img
+                              src={img}
+                              alt={`${selectedPackage.name} ${idx + 1}`}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            />
+                            {idx === 3 && selectedPackageImages.length > 4 && (
+                              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                                <span className="text-white font-bold text-xl">+{selectedPackageImages.length - 4}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
+
+          <hr className="border-white/10" />
+
+          {/* Reviews */}
+          <section>
+            <div className="flex items-center gap-3 mb-8">
+              <Star className="w-8 h-8 text-yellow-400 fill-current" />
+              <h2 className="text-2xl md:text-3xl font-bold text-white">
+                {vendor.averageRating > 0 ? vendor.averageRating.toFixed(1) : 'Chưa có đánh giá'}
+                <span className="text-lg text-silver/50 font-normal ml-2">({reviews.length} đánh giá)</span>
+              </h2>
+            </div>
+
+            {reviews.length > 0 && (
+              <div className="grid md:grid-cols-[1fr_2fr] gap-8 mb-10 items-center">
+                <div className="space-y-3">
+                  {ratingCounts.map(({ star, count }) => (
+                    <div key={star} className="flex items-center gap-3">
+                      <span className="text-sm font-medium w-3">{star}</span>
+                      <Star className="w-3.5 h-3.5 text-silver/40" />
+                      <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-yellow-400 rounded-full"
+                          style={{ width: `${(count / maxRatingCount) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-white/5 rounded-2xl p-6 border border-white/5 text-silver/80 text-sm">
+                  <span className="font-bold text-white block mb-2">Thông tin minh bạch</span>
+                  100% đánh giá đều từ khách hàng đã trải nghiệm và thanh toán qua nền tảng.
+                </div>
               </div>
-            </aside>
-          </div>
+            )}
+
+            <div className="grid md:grid-cols-2 gap-6">
+              {reviews.map((rev) => (
+                <div key={rev._id} className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan/40 to-blue-600/40 p-0.5">
+                        <img
+                          src={rev.customerId?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rev.customerId?._id}`}
+                          alt={rev.customerId?.name}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      </div>
+                      <div>
+                        <p className="font-bold text-white text-sm">{rev.customerId?.name || 'Khách hàng'}</p>
+                        <p className="text-xs text-silver/50">{new Date(rev.createdAt).toLocaleDateString('vi-VN')}</p>
+                      </div>
+                    </div>
+                    <StarRating rating={rev.rating} />
+                  </div>
+
+                  {rev.comment && <p className="text-silver/90 text-sm leading-relaxed">{rev.comment}</p>}
+
+                  {rev.vendorReply && (
+                    <div className="mt-4 p-4 bg-cyan/5 border border-cyan/10 rounded-2xl rounded-tl-none">
+                      <p className="text-xs font-bold text-cyan mb-1 flex items-center gap-1">
+                        <ShieldCheck className="w-3 h-3" /> Phản hồi từ Vendor
+                      </p>
+                      <p className="text-sm text-silver/80">{rev.vendorReply}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
-        );
+
+        {/* Right Column: Sticky Sidebar */}
+        <aside className="lg:sticky top-24 space-y-6">
+          <div className="glass-panel p-6 rounded-3xl border border-white/10 shadow-2xl">
+            <h3 className="text-xl font-bold text-white mb-6">Tóm tắt đơn đặt</h3>
+
+            <div className="space-y-4 mb-6">
+              <div className="flex justify-between text-sm">
+                <span className="text-silver/70">Gói đã chọn</span>
+                <span className="font-semibold text-white max-w-[150px] text-right truncate">{selectedPackage?.name || '--'}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-silver/70">Giá trọn gói</span>
+                <span className="font-bold text-white">{selectedPackage ? toCurrency(selectedPackage.price) : '--'}</span>
+              </div>
+              <div className="flex justify-between text-sm py-3 border-y border-white/10">
+                <span className="text-silver/70 font-medium">Đặt cọc ngay</span>
+                <span className="font-bold text-cyan text-lg">{selectedPackage ? toCurrency(selectedPackage.depositAmount) : '--'}</span>
+              </div>
+              <div className="flex justify-between text-sm text-silver/50">
+                <span>Còn lại thanh toán sau</span>
+                <span>{selectedPackage ? toCurrency(selectedPackage.price - selectedPackage.depositAmount) : '--'}</span>
+              </div>
+            </div>
+
+            <Link
+              to={`/booths/${booth._id}/book?packageId=${selectedPackageId}`}
+              className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold uppercase tracking-wider transition-all shadow-lg ${selectedPackageId
+                ? 'bg-cyan text-navy hover:bg-cyan/90 shadow-cyan/20 hover:shadow-cyan/40'
+                : 'bg-white/10 text-white/40 cursor-not-allowed'
+                }`}
+              onClick={(e) => { if (!selectedPackageId) e.preventDefault(); }}
+            >
+              Tiếp tục đặt lịch <ChevronRight className="w-5 h-5" />
+            </Link>
+            <p className="text-center text-xs text-silver/50 mt-4">Bạn chưa bị trừ tiền ở bước này.</p>
+          </div>
+
+          <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-5">
+            <div className="flex items-center gap-4 border-b border-white/10 pb-4">
+              <img
+                src={vendor.avatar || `https://api.dicebear.com/7.x/shapes/svg?seed=${vendor._id}`}
+                alt={vendor.name}
+                className="w-16 h-16 rounded-2xl object-cover border border-white/10"
+              />
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-silver/50">Nhà cung cấp</p>
+                <Link to={`/vendor/${vendor._id}`} className="font-bold text-white hover:text-cyan transition-colors line-clamp-1">{vendor.name}</Link>
+                <div className="flex items-center gap-1 mt-1 text-xs text-yellow-400">
+                  <Star className="w-3 h-3 fill-current" /> {vendor.averageRating > 0 ? vendor.averageRating.toFixed(1) : 'Mới'}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center gap-3 text-silver/80">
+                <MapPin className="w-4 h-4 text-cyan" />
+                <span className="truncate">{vendor.address || 'Chưa cập nhật địa chỉ'}</span>
+              </div>
+              <div className="flex items-center gap-3 text-silver/80">
+                <Phone className="w-4 h-4 text-cyan" />
+                <span>{contactUnlocked ? vendor.phone || '--' : 'Bảo mật (Chờ đặt cọc)'}</span>
+              </div>
+              <div className="flex items-center gap-3 text-silver/80">
+                <Mail className="w-4 h-4 text-cyan" />
+                <span className="truncate">{contactUnlocked ? vendor.email || '--' : 'Bảo mật (Chờ đặt cọc)'}</span>
+              </div>
+            </div>
+
+            <a
+              href={contactUnlocked ? `mailto:${vendor.email}?subject=Tư vấn gói ${encodeURIComponent(selectedPackage?.name || booth.name)}` : '#'}
+              onClick={(e) => { if (!contactUnlocked) e.preventDefault(); }}
+              className={`block w-full text-center py-3 rounded-xl text-sm font-semibold border transition-colors ${contactUnlocked
+                ? 'border-cyan text-cyan hover:bg-cyan/10'
+                : 'border-white/10 text-white/30 cursor-not-allowed bg-white/5'
+                }`}
+            >
+              Liên hệ nhà cung cấp
+            </a>
+          </div>
+        </aside>
+      </div>
+
+      {lightbox && (
+        <ImageLightbox
+          images={lightbox.images}
+          index={lightbox.index}
+          onClose={closeLightbox}
+          onPrev={showPrevLightbox}
+          onNext={showNextLightbox}
+        />
+      )}
+    </div>
+  );
 }

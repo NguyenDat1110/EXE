@@ -589,7 +589,7 @@ export const togglePackageStatus = async (req: AuthRequest, res: Response): Prom
     const vendor = await Vendor.findById(vendorId);
     if (!vendor) { res.status(404).json({ message: 'Vendor không tồn tại' }); return; }
 
-    const pkg = vendor.packages.id(packageId);
+    const pkg = vendor.packages.find((p: any) => p._id.toString() === packageId);
     if (!pkg) { res.status(404).json({ message: 'Package không tồn tại' }); return; }
 
     pkg.isActive = isActive;

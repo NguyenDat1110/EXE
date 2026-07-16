@@ -51,11 +51,10 @@ export const uploadToCloudinary = async (
 export const uploadToCloudinaryFile = async (
   file: File,
   folder: string = 'eventflow/users',
-  resourceType: CloudinaryResourceType = 'auto',
+  resourceType?: CloudinaryResourceType,
   maxSize: number = 5 * 1024 * 1024
 ): Promise<CloudinaryResponse> => {
   try {
-    // Validate file
     if (!file) {
       throw new Error('Vui lòng chọn một tệp hợp lệ');
     }
@@ -65,7 +64,6 @@ export const uploadToCloudinaryFile = async (
       throw new Error(`Kích thước tệp không được vượt quá ${maxSizeInMb}MB`);
     }
 
-    // Restrict image uploads only when using image mode
     if (resourceType === 'image') {
       const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
       if (!validTypes.includes(file.type)) {
@@ -73,15 +71,14 @@ export const uploadToCloudinaryFile = async (
       }
     }
 
-    // Create FormData
+    const endpoint = 'image/upload';
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
     formData.append('folder', folder);
-    formData.append('resource_type', resourceType);
 
-    // Upload to Cloudinary
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`, {
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${endpoint}`, {
       method: 'POST',
       body: formData
     });

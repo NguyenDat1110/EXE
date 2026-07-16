@@ -1,7 +1,4 @@
-import { Request, Response } from 'express';
-import { mkdir, writeFile } from 'fs/promises';
-import path from 'path';
-import { randomUUID } from 'crypto';
+import { Response } from 'express';
 import { Vendor } from '../models/vendor.model';
 import { VendorRegistration } from '../models/vendor-registration.model';
 import { Booking } from '../models/booking.model';
@@ -34,68 +31,14 @@ const normalizeBusinessLicense = (value: unknown): string[] => {
   return [];
 };
 
-const sanitizeFilename = (fileName: string): string => {
-  return fileName
-    .normalize('NFC')
-    .replace(/[\\/:*?"<>|\u0000-\u001F]/g, '_')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/[. ]+$/g, '') || 'license';
+const trimNamesToMatchUrls = (names: string[], urls: string[]): string[] => {
+  if (names.length <= urls.length) return names;
+  return names.slice(0, urls.length);
 };
 
-const extensionFromMimeType = (mimeType: string, originalName: string): string => {
-  const normalized = originalName.toLowerCase();
-  if (normalized.endsWith('.pdf') || mimeType === 'application/pdf') return '.pdf';
-  if (normalized.endsWith('.png') || mimeType === 'image/png') return '.png';
-  if (normalized.endsWith('.webp') || mimeType === 'image/webp') return '.webp';
-  if (normalized.endsWith('.jpg') || normalized.endsWith('.jpeg') || mimeType === 'image/jpeg') return '.jpg';
-  return '';
-};
 
-export const uploadVendorLicense = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    if (!req.user) {
-      res.status(401).json({ message: 'Không được phép truy cập.' });
-      return;
-    }
 
-    const file = (req as Request & { file?: Express.Multer.File }).file;
 
-    if (!file) {
-      res.status(400).json({ message: 'Thiếu tệp cần tải lên.' });
-      return;
-    }
-
-    const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-      res.status(400).json({ message: 'Chỉ hỗ trợ PDF, JPG, PNG và WEBP.' });
-      return;
-    }
-
-    const uploadsDir = path.resolve(process.cwd(), 'uploads', 'business-licenses');
-    await mkdir(uploadsDir, { recursive: true });
-
-    const originalName = file.originalname || 'license';
-    const safeBaseName = sanitizeFilename(originalName.replace(/\.[^.]+$/, ''));
-    const extension = extensionFromMimeType(file.mimetype, originalName);
-    const storedFileName = `${Date.now()}-${randomUUID()}-${safeBaseName}${extension}`;
-    const filePath = path.join(uploadsDir, storedFileName);
-
-    await writeFile(filePath, file.buffer);
-
-    const publicUrl = `${req.protocol}://${req.get('host')}/uploads/business-licenses/${storedFileName}`;
-
-    res.status(201).json({
-      message: 'Tải lên giấy phép thành công.',
-      fileUrl: publicUrl,
-      fileName: originalName,
-      mimeType: file.mimetype,
-    });
-  } catch (error) {
-    console.error('Upload vendor license error:', error);
-    res.status(500).json({ message: 'Không thể tải lên giấy phép. Vui lòng thử lại.' });
-  }
-};
 
 const SHARED_FIELDS = [
   'companyName', 'taxId', 'accountHolderName', 'accountNumber', 'bankName',
@@ -151,7 +94,10 @@ export const submitVendorInfo = async (req: AuthRequest, res: Response): Promise
 
     // Save to VendorRegistration
     const normalizedLicense = normalizeBusinessLicense(businessLicense);
-    const normalizedLicenseNames = normalizeBusinessLicense(businessLicenseNames);
+    const normalizedLicenseNames = trimNamesToMatchUrls(
+      normalizeBusinessLicense(businessLicenseNames),
+      normalizedLicense
+    );
 
     let registration = await VendorRegistration.findOne({ userId: req.user.id });
     if (!registration) {

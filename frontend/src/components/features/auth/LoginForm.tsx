@@ -195,7 +195,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       {/* Google Login */}
       <button
         type="button"
-        onClick={() => handleGoogleLogin()}
+        onClick={handleGoogleLogin}
         className="w-full py-2.5 rounded-lg glass-panel hover:glass-active transition-all font-medium text-white border border-white/10 flex items-center justify-center gap-2"
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24">

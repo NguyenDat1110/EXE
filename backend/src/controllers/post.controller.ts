@@ -52,17 +52,14 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const { title, content, eventType } = req.body;
+    const { title, content, eventType, images } = req.body;
 
     if (!title || !content) {
       res.status(400).json({ message: 'Tiêu đề và nội dung không được để trống' });
       return;
     }
 
-    const files = req.files as Express.Multer.File[];
-    const imageUrls = files
-      ? files.map((f) => `/uploads/posts/${f.filename}`)
-      : [];
+    const imageUrls = Array.isArray(images) ? images : [];
 
     const post = await Post.create({
       vendorId: vendor._id,
@@ -219,37 +216,11 @@ export const updatePost = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const { title, content, eventType, keepImages } = req.body;
+    const { title, content, eventType, images } = req.body;
     if (title) post.title = title;
     if (content) post.content = content;
     if (eventType !== undefined) post.eventType = eventType;
-
-    let kept: string[] = [];
-    try {
-      kept = keepImages ? JSON.parse(keepImages) : [];
-    } catch {
-      kept = [];
-    }
-    kept = kept.filter(Boolean);
-
-    const newFiles = req.files as Express.Multer.File[];
-    const newUrls = newFiles
-      ? newFiles.map((f) => `/uploads/posts/${f.filename}`)
-      : [];
-
-    const finalImages = [...kept, ...newUrls];
-
-    if (finalImages.length > 0) {
-      const oldImages = post.images || [];
-      const removed = oldImages.filter((img) => !kept.includes(img));
-      for (const imgPath of removed) {
-        const fullPath = path.resolve(process.cwd(), imgPath.replace(/^\//, ''));
-        if (fs.existsSync(fullPath)) {
-          fs.unlinkSync(fullPath);
-        }
-      }
-      post.images = finalImages;
-    }
+    if (images !== undefined) post.images = images;
 
     await post.save();
     res.json({ message: 'Cập nhật bài viết thành công', post });
@@ -290,13 +261,8 @@ export const deletePost = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    // Xóa ảnh khỏi disk
-    for (const imgPath of post.images) {
-      const fullPath = path.resolve(process.cwd(), imgPath.replace(/^\//, ''));
-      if (fs.existsSync(fullPath)) {
-        fs.unlinkSync(fullPath);
-      }
-    }
+    // Image deletion should be handled by Cloudinary via a cron job or webhook
+    // We will just delete the DB record.
 
     await post.deleteOne();
     res.json({ message: 'Xóa bài viết thành công' });

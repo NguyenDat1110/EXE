@@ -24,22 +24,8 @@ router.get('/', authenticate as any, getAllPosts as any);
 
 // Wildcard LAST
 router.get('/:postId', getPostById as any);
-router.post('/', authenticate as any, (req, res, next) => {
-  uploadPostImages(req, res, (err) => {
-    if (err) {
-      return res.status(400).json({ message: err.message });
-    }
-    next();
-  });
-}, createPost as any);
-router.patch('/:postId', authenticate as any, (req, res, next) => {
-  uploadPostImages(req, res, (err) => {
-    if (err) {
-      return res.status(400).json({ message: err.message });
-    }
-    next();
-  });
-}, updatePost as any);
+router.post('/', authenticate as any, createPost as any);
+router.patch('/:postId', authenticate as any, updatePost as any);
 router.delete('/:postId', authenticate as any, deletePost as any);
 
 export default router;

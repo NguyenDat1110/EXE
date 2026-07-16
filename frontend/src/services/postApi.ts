@@ -46,14 +46,14 @@ export const getMyPosts = async (): Promise<{ posts: Post[] }> => {
 };
 
 // Vendor tạo bài viết mới (có upload ảnh)
-export const createPost = async (formData: FormData): Promise<{ post: Post }> => {
-  const res = await api.post('/posts', formData);
+export const createPost = async (data: Partial<Post>): Promise<{ post: Post }> => {
+  const res = await api.post('/posts', data);
   return res.data;
 };
 
 // Vendor cập nhật bài viết (có upload ảnh)
-export const updatePost = async (postId: string, formData: FormData): Promise<{ post: Post }> => {
-  const res = await api.patch(`/posts/${postId}`, formData);
+export const updatePost = async (postId: string, data: Partial<Post>): Promise<{ post: Post }> => {
+  const res = await api.patch(`/posts/${postId}`, data);
   return res.data;
 };
 

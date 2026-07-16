@@ -32,6 +32,7 @@ export interface AuthState {
   token: string | null;
 
   login: (email: string, password: string, role?: UserRole) => Promise<void>;
+  loginWithGoogle: (accessToken: string) => Promise<void>;
   logout: () => void;
   register: (data: Partial<User>) => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
@@ -54,6 +55,24 @@ export const useAuthStore = create<AuthState>()(
           const response = await api.post('/auth/login', { email, password });
           const { token, user } = response.data;
 
+          set({
+            user,
+            role: user.role,
+            isAuthenticated: true,
+            token,
+            isLoading: false,
+          });
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      loginWithGoogle: async (accessToken: string) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/auth/google-login', { accessToken });
+          const { token, user } = response.data;
           set({
             user,
             role: user.role,

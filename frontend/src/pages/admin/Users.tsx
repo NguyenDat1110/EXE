@@ -165,7 +165,7 @@ export default function AdminUsers() {
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-silver/60">
                     Email
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-silver/60">
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-silver/60 w-[140px]">
                     Vai Trò
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-silver/60">
@@ -184,7 +184,7 @@ export default function AdminUsers() {
                   <tr key={user._id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4 text-white font-medium">{user.name}</td>
                     <td className="px-6 py-4 text-slate-400 text-xs">{user.email}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRoleLabel(user.role).color}`}>
                         {getRoleLabel(user.role).text}
                       </span>

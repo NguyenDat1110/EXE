@@ -65,8 +65,11 @@ export const deletePost = async (postId: string): Promise<void> => {
 };
 
 // Admin lấy tất cả bài viết
-export const adminGetAllPosts = async (page = 1, limit = 20): Promise<PostsResponse> => {
-  const res = await api.get(`/posts/admin/all?page=${page}&limit=${limit}`);
+export const adminGetAllPosts = async (page = 1, limit = 10, search = '', eventType = ''): Promise<PostsResponse> => {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (search) params.append('search', search);
+  if (eventType && eventType !== 'Tất cả') params.append('eventType', eventType);
+  const res = await api.get(`/posts/admin/all?${params}`);
   return res.data;
 };
 

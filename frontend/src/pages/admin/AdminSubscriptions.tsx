@@ -94,13 +94,13 @@ export default function AdminSubscriptions() {
           onClick={() => setActiveTab('plans')}
           className={`px-4 py-2 font-medium rounded-lg transition-colors ${activeTab === 'plans' ? 'bg-cyan/20 text-cyan' : 'text-slate-400 hover:text-white'}`}
         >
-          Cấu hình gói (UC-41)
+          Cấu hình gói
         </button>
         <button 
           onClick={() => setActiveTab('grant')}
           className={`px-4 py-2 font-medium rounded-lg transition-colors ${activeTab === 'grant' ? 'bg-cyan/20 text-cyan' : 'text-slate-400 hover:text-white'}`}
         >
-          Cấp phát VIP (UC-43)
+          Cấp phát VIP
         </button>
       </div>
 

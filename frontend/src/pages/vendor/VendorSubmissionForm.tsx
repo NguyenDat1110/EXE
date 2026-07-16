@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Upload, Loader, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { uploadToCloudinary, optimizeCloudinaryUrl } from '../../services/cloudinary';
+import { uploadToCloudinary, uploadToCloudinaryFile, optimizeCloudinaryUrl } from '../../services/cloudinary';
 import api from '../../services/api';
 
 interface VendorStatus {
@@ -62,7 +62,8 @@ export function VendorSubmissionForm() {
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [avatarUploadError, setAvatarUploadError] = useState<string | null>(null);
+  const [licenseUploadError, setLicenseUploadError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   // Load current vendor status
@@ -80,6 +81,18 @@ export function VendorSubmissionForm() {
           });
           // Pre-fill form with existing data
             if (vendor.companyName) {
+            const bizLicense = Array.isArray(vendor.businessLicense)
+              ? vendor.businessLicense
+              : vendor.businessLicense
+                ? [vendor.businessLicense]
+                : [];
+            let bizLicenseNames = Array.isArray(vendor.businessLicenseNames)
+              ? vendor.businessLicenseNames
+              : [];
+            if (bizLicenseNames.length > bizLicense.length) {
+              bizLicenseNames = bizLicenseNames.slice(0, bizLicense.length);
+            }
+
             setFormData(prev => ({
               ...prev,
               companyName: vendor.companyName,
@@ -92,29 +105,14 @@ export function VendorSubmissionForm() {
                 accountNumber: vendor.accountNumber || '',
                 bankName: vendor.bankName || '',
                 bio: vendor.bio || '',
-              businessLicense: Array.isArray(vendor.businessLicense)
-                ? vendor.businessLicense
-                : vendor.businessLicense
-                  ? [vendor.businessLicense]
-                  : [],
-              businessLicenseNames: Array.isArray(vendor.businessLicenseNames)
-                ? vendor.businessLicenseNames
-                : [],
+              businessLicense: bizLicense,
+              businessLicenseNames: bizLicenseNames,
               avatar: vendor.avatar || ''
             }));
 
-            const existingFiles = Array.isArray(vendor.businessLicense)
-              ? vendor.businessLicense
-              : vendor.businessLicense
-                ? [vendor.businessLicense]
-                : [];
-            const existingNames = Array.isArray(vendor.businessLicenseNames)
-              ? vendor.businessLicenseNames
-              : [];
-
             setLicenseFiles(
-              existingFiles.map((url, index) => ({
-                name: existingNames[index] || extractFileName(url),
+              bizLicense.map((url, index) => ({
+                name: bizLicenseNames[index] || extractFileName(url),
                 url,
               }))
             );
@@ -172,14 +170,14 @@ export function VendorSubmissionForm() {
     if (!file) return;
 
     setIsUploading(true);
-    setUploadError(null);
+    setAvatarUploadError(null);
 
     try {
       const uploaded = await uploadToCloudinary(file, 'eventflow/vendor-avatars');
       const optimized = optimizeCloudinaryUrl(uploaded.secure_url, 300, 300, 85);
       setFormData(prev => ({ ...prev, avatar: optimized }));
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Lỗi tải lên ảnh đại diện');
+      setAvatarUploadError(err instanceof Error ? err.message : 'Lỗi tải lên ảnh đại diện');
     } finally {
       setIsUploading(false);
     }
@@ -190,19 +188,20 @@ export function VendorSubmissionForm() {
     if (files.length === 0) return;
 
     setIsUploading(true);
-    setUploadError(null);
+    setLicenseUploadError(null);
 
     try {
       const uploadedFiles = await Promise.all(
         files.map(async (file) => {
-          const formData = new FormData();
-          formData.append('file', file);
+          const res = await uploadToCloudinaryFile(file, 'eventflow/vendor-licenses', undefined, 20 * 1024 * 1024);
 
-          const response = await api.post('/vendor/upload-license', formData);
+          const url = !file.type.startsWith('image/')
+            ? res.secure_url.replace('/upload/', '/upload/fl_attachment/')
+            : res.secure_url;
 
           return {
             name: file.name,
-            url: response.data.fileUrl,
+            url,
           };
         })
       );
@@ -215,7 +214,7 @@ export function VendorSubmissionForm() {
       setLicenseFiles(prev => [...prev, ...uploadedFiles]);
       e.target.value = '';
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Lỗi tải lên giấy phép');
+      setLicenseUploadError(err instanceof Error ? err.message : 'Lỗi tải lên giấy phép');
     } finally {
       setIsUploading(false);
     }
@@ -394,7 +393,7 @@ export function VendorSubmissionForm() {
                 disabled={isUploading || isViewMode}
                 className="hidden"
               />
-              {uploadError && <p className="text-red-400 text-sm mt-2">{uploadError}</p>}
+              {avatarUploadError && <p className="text-red-400 text-sm mt-2">{avatarUploadError}</p>}
             </div>
 
             {/* Company Info */}
@@ -566,7 +565,12 @@ export function VendorSubmissionForm() {
                     <div key={`${file.url}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3">
                       <div className="min-w-0">
                         <p className="text-white text-sm font-medium truncate">{file.name}</p>
-                        <a href={file.url} target="_blank" rel="noreferrer" className="text-cyan text-xs hover:underline">
+                        <a href={(() => {
+                          const u = file.url;
+                          if (!u.includes('cloudinary.com') || !/\.(pdf|docx?|xlsx?|pptx?|zip|rar)$/i.test(u)) return u;
+                          if (u.includes('raw/upload')) return u.replace('raw/upload', 'image/upload/fl_attachment');
+                          return u.includes('fl_attachment') ? u : u.replace('/upload/', '/upload/fl_attachment/');
+                        })()} target="_blank" rel="noreferrer" className="text-cyan text-xs hover:underline">
                           Xem tài liệu
                         </a>
                       </div>
@@ -576,10 +580,15 @@ export function VendorSubmissionForm() {
                           onClick={(event) => {
                             event.stopPropagation();
                             setLicenseFiles(prev => prev.filter((_, currentIndex) => currentIndex !== index));
-                            setFormData(prev => ({
-                              ...prev,
-                              businessLicense: prev.businessLicense.filter((url) => url !== file.url)
-                            }));
+                            setFormData(prev => {
+                              const urlIndex = prev.businessLicense.indexOf(file.url);
+                              if (urlIndex === -1) return prev;
+                              return {
+                                ...prev,
+                                businessLicense: prev.businessLicense.filter((_, i) => i !== urlIndex),
+                                businessLicenseNames: prev.businessLicenseNames.filter((_, i) => i !== urlIndex),
+                              };
+                            });
                           }}
                           className="text-silver/60 hover:text-white transition-colors"
                           aria-label={`Xóa file ${file.name}`}
@@ -591,6 +600,7 @@ export function VendorSubmissionForm() {
                   ))}
                 </div>
               )}
+              {licenseUploadError && <p className="text-red-400 text-sm mt-3">{licenseUploadError}</p>}
             </div>
 
             {/* Description */}

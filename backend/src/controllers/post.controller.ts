@@ -219,12 +219,26 @@ export const adminGetAllPosts = async (req: AuthRequest, res: Response): Promise
     }
 
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
+    const search = (req.query.search as string || '').trim();
+    const eventType = req.query.eventType as string;
+
+    const filter: any = {};
+    if (eventType && eventType !== 'Tất cả') {
+      filter.eventType = eventType;
+    }
+    if (search) {
+      const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [
+        { title: regex },
+        { vendorName: regex },
+      ];
+    }
 
     const [posts, total] = await Promise.all([
-      Post.find().sort({ createdAt: -1 }).skip(skip).limit(limit).populate('packageId'),
-      Post.countDocuments(),
+      Post.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('packageId'),
+      Post.countDocuments(filter),
     ]);
 
     res.json({
@@ -233,7 +247,7 @@ export const adminGetAllPosts = async (req: AuthRequest, res: Response): Promise
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(total / limit) || 1,
       },
     });
   } catch (err) {

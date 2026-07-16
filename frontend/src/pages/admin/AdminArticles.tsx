@@ -24,6 +24,7 @@ export default function AdminArticles() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [eventFilter, setEventFilter] = useState('Tất cả');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -37,13 +38,13 @@ export default function AdminArticles() {
 
   useEffect(() => {
     fetchPosts(1);
-  }, []);
+  }, [searchQuery, eventFilter]);
 
   const fetchPosts = async (pageNum: number) => {
     try {
       setLoading(true);
       setError('');
-      const data = await adminGetAllPosts(pageNum, 20);
+      const data = await adminGetAllPosts(pageNum, 10, searchQuery, eventFilter);
       setPosts(data.posts);
       setTotalPages(data.pagination.totalPages);
       setTotal(data.pagination.total);
@@ -71,14 +72,6 @@ export default function AdminArticles() {
     }
   };
 
-  const filteredPosts = posts.filter(
-    (p) =>
-      (eventFilter === 'Tất cả' || p.eventType === eventFilter) &&
-      (!search ||
-        p.title.toLowerCase().includes(search.toLowerCase()) ||
-        p.vendorName.toLowerCase().includes(search.toLowerCase()))
-  );
-
   return (
     <div className="p-6 max-w-5xl mx-auto">
       {/* Header */}
@@ -105,13 +98,14 @@ export default function AdminArticles() {
       {/* Search */}
       <div className="relative mb-6">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-        <input
-          type="text"
-          placeholder="Tìm kiếm bài viết hoặc tên vendor..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-cyan/40"
-        />
+          <input
+            type="text"
+            placeholder="Tìm kiếm bài viết hoặc tên vendor... (Enter để tìm)"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') setSearchQuery(search); }}
+            className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-cyan/40"
+          />
       </div>
 
       {/* Filter */}
@@ -132,11 +126,11 @@ export default function AdminArticles() {
       </div>
 
       {/* Posts */}
-      {loading ? (
+        {loading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-cyan" />
         </div>
-      ) : filteredPosts.length === 0 ? (
+      ) : posts.length === 0 ? (
         <div className="text-center py-20">
           <FileText className="w-12 h-12 text-white/20 mx-auto mb-4" />
           <p className="text-white/50">Không có bài viết nào</p>
@@ -144,7 +138,7 @@ export default function AdminArticles() {
       ) : (
         <>
           <div className="space-y-4">
-            {filteredPosts.map((post) => (
+            {posts.map((post) => (
               <div
                 key={post._id}
                 className="bg-white/3 border border-white/8 rounded-2xl p-5 hover:border-white/15 transition-colors"

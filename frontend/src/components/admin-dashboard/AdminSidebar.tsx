@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, CreditCard, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, Settings } from 'lucide-react';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Tổng Quan', path: 'admin-dashboard' },
@@ -50,12 +50,6 @@ export default function AdminSidebar({ navigate, currentPage }: { navigate: (pag
         })}
       </nav>
 
-      <div className="p-4 border-t border-white/10">
-        <button onClick={() => navigate('home')} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all w-full">
-          <LogOut className="w-5 h-5" />
-          Đăng Xuất
-        </button>
-      </div>
     </aside>
   );
 }

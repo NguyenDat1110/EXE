@@ -28,12 +28,24 @@ const renderBusinessLicenseLinks = (license: string | string[] | undefined, name
 
   const links = Array.isArray(license) ? license : [license];
 
+  const isDocument = (url: string) => /\.(pdf|docx?|xlsx?|pptx?|zip|rar)$/i.test(url);
+
+  const addDownloadFlag = (url: string) => {
+    if (!url.includes('cloudinary.com') || !isDocument(url)) return url;
+
+    if (url.includes('raw/upload')) {
+      return url.replace('raw/upload', 'image/upload/fl_attachment');
+    }
+
+    return url.includes('fl_attachment') ? url : url.replace('/upload/', '/upload/fl_attachment/');
+  };
+
   return (
     <div className="space-y-2">
       {links.map((item, index) => (
         <a
           key={`${item}-${index}`}
-          href={item}
+          href={addDownloadFlag(item)}
           target="_blank"
           rel="noopener noreferrer"
           className="text-primary hover:underline flex items-center gap-2"

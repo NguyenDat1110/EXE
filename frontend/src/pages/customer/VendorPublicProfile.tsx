@@ -1,27 +1,53 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getVendorPosts, Post } from '../../services/postApi';
-import { Star, MapPin, CalendarCheck, Shield, ChevronLeft, CalendarDays, Rss } from 'lucide-react';
+import { getVendorReviews } from '../../services/reviewApi';
+import { Star, MapPin, CalendarCheck, Shield, ChevronLeft, CalendarDays, Rss, ShieldCheck, MessageSquare } from 'lucide-react';
 import EventFeedCard from '../../components/customer/EventFeedCard';
 
 const BASE_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
 const getAvatarInitial = (name: string) => name?.[0]?.toUpperCase() || 'V';
+
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          className={`w-3.5 h-3.5 ${rating >= star
+            ? 'fill-yellow-400 text-yellow-400'
+            : rating >= star - 0.5
+              ? 'fill-yellow-400/50 text-yellow-400'
+              : 'fill-transparent text-silver/30'
+            }`}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function VendorPublicProfile() {
   const { vendorId } = useParams();
   const navigate = useNavigate();
   const [vendor, setVendor] = useState<any>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [boothId, setBoothId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'posts' | 'reviews'>('posts');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (vendorId) {
-      getVendorPosts(vendorId)
-        .then(data => {
-          setVendor(data.vendor);
-          setPosts(data.posts);
-          setBoothId(data.boothId);
+      setLoading(true);
+      Promise.all([
+        getVendorPosts(vendorId),
+        getVendorReviews(vendorId).catch(() => [])
+      ])
+        .then(([postData, reviewData]) => {
+          setVendor(postData.vendor);
+          setPosts(postData.posts);
+          setBoothId(postData.boothId);
+          setReviews(reviewData || []);
         })
         .catch(() => alert('Không tìm thấy thông tin vendor'))
         .finally(() => setLoading(false));
@@ -109,26 +135,89 @@ export default function VendorPublicProfile() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
-        {/* Main Content: Posts */}
-        <div>
-          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
-            <Rss className="w-6 h-6 text-cyan" />
-            <h2 className="text-2xl font-bold text-white">Hoạt động ({posts.length})</h2>
-          </div>
+      {/* Tabs */}
+      <div className="flex gap-6 border-b border-white/10 mb-8 pb-px">
+        <button
+          onClick={() => setActiveTab('posts')}
+          className={`pb-4 text-base font-bold border-b-2 transition-all relative ${
+            activeTab === 'posts'
+              ? 'text-cyan border-cyan'
+              : 'text-silver/50 border-transparent hover:text-white'
+          }`}
+        >
+          Hoạt động ({posts.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('reviews')}
+          className={`pb-4 text-base font-bold border-b-2 transition-all relative ${
+            activeTab === 'reviews'
+              ? 'text-cyan border-cyan'
+              : 'text-silver/50 border-transparent hover:text-white'
+          }`}
+        >
+          Đánh giá ({reviews.length})
+        </button>
+      </div>
 
-          {posts.length === 0 ? (
-            <div className="glass-panel p-10 rounded-2xl text-center">
-              <CalendarDays className="w-12 h-12 text-silver/20 mx-auto mb-4" />
-              <h3 className="font-bold text-white mb-2">Chưa có hoạt động</h3>
-              <p className="text-sm text-silver/60">Vendor này chưa đăng bài viết sự kiện nào.</p>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+        {/* Main Content */}
+        <div>
+          {activeTab === 'posts' ? (
+            posts.length === 0 ? (
+              <div className="glass-panel p-10 rounded-2xl text-center">
+                <CalendarDays className="w-12 h-12 text-silver/20 mx-auto mb-4" />
+                <h3 className="font-bold text-white mb-2">Chưa có hoạt động</h3>
+                <p className="text-sm text-silver/60">Vendor này chưa đăng bài viết sự kiện nào.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {posts.map(post => (
+                  <EventFeedCard key={post._id} post={post} />
+                ))}
+              </div>
+            )
           ) : (
-            <div className="space-y-6">
-              {posts.map(post => (
-                <EventFeedCard key={post._id} post={post} />
-              ))}
-            </div>
+            reviews.length === 0 ? (
+              <div className="glass-panel p-10 rounded-2xl text-center">
+                <MessageSquare className="w-12 h-12 text-silver/20 mx-auto mb-4" />
+                <h3 className="font-bold text-white mb-2">Chưa có đánh giá</h3>
+                <p className="text-sm text-silver/60">Chưa có nhận xét nào dành cho nhà cung cấp này.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {reviews.map((rev) => (
+                  <div key={rev._id} className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl space-y-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan/40 to-blue-600/40 p-0.5">
+                          <img
+                            src={rev.customerId?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rev.customerId?._id}`}
+                            alt={rev.customerId?.name}
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                        </div>
+                        <div>
+                          <p className="font-bold text-white text-sm">{rev.customerId?.name || 'Khách hàng'}</p>
+                          <p className="text-xs text-silver/50">{new Date(rev.createdAt).toLocaleDateString('vi-VN')}</p>
+                        </div>
+                      </div>
+                      <StarRating rating={rev.rating} />
+                    </div>
+
+                    {rev.comment && <p className="text-silver/90 text-sm leading-relaxed">{rev.comment}</p>}
+
+                    {rev.vendorReply && (
+                      <div className="mt-4 p-4 bg-cyan/5 border border-cyan/10 rounded-2xl rounded-tl-none">
+                        <p className="text-xs font-bold text-cyan mb-1 flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" /> Phản hồi từ Vendor
+                        </p>
+                        <p className="text-sm text-silver/80">{rev.vendorReply}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
           )}
         </div>
 

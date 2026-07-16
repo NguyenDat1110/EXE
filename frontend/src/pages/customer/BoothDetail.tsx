@@ -1,8 +1,11 @@
-import { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Mail, MapPin, Phone, Star, ChevronRight, CheckCircle2, Building, ShieldCheck, Users, Clock, Info } from 'lucide-react';
+import { Mail, MapPin, Phone, Star, ChevronRight, CheckCircle2, Building, ShieldCheck, Users, Clock, Info, Compass, Loader2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ImageLightbox } from '../../components/ui/ImageLightbox';
+import { useStageBuilderStore } from '../../store/stageBuilderStore';
+
+const ThreeDViewer = React.lazy(() => import('../../components/features/stage-builder/ThreeDViewer'));
 import {
   ExploreBoothPackage,
   getBoothDetail,
@@ -11,7 +14,7 @@ import {
 } from '../../services/exploreApi';
 import { getMyBookings } from '../../services/bookingsApi';
 import { useAuthStore } from '../../store/authStore';
-import { getVendorReviews } from '../../services/reviewApi';
+import { getVendorReviews, createReview } from '../../services/reviewApi';
 
 const toCurrency = (value: number) =>
   new Intl.NumberFormat('vi-VN', {
@@ -61,7 +64,23 @@ export default function BoothDetail() {
   const [selectedPackageId, setSelectedPackageId] = useState<string>('');
   const [contactUnlocked, setContactUnlocked] = useState(false);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [completedBookings, setCompletedBookings] = useState<any[]>([]);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewHoverRating, setReviewHoverRating] = useState<number | null>(null);
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
+  const [show3DModal, setShow3DModal] = useState(false);
+
+  const handleOpen3D = (stageLayout: any[]) => {
+    useStageBuilderStore.setState({ items: stageLayout });
+    setShow3DModal(true);
+  };
+
+  const handleClose3D = () => {
+    setShow3DModal(false);
+    useStageBuilderStore.getState().clearAll();
+  };
 
   const openLightbox = (images: string[], index: number) => setLightbox({ images, index });
   const closeLightbox = () => setLightbox(null);
@@ -98,6 +117,21 @@ export default function BoothDetail() {
           } catch {
             setContactUnlocked(false);
           }
+
+          try {
+            const completedResult = await getMyBookings();
+            const allBookings = completedResult?.data?.bookings || [];
+            const unreviewed = allBookings.filter(
+              (b: any) =>
+                String(b.vendor?._id) === String(result.vendor?._id) &&
+                b.status === 'completed' &&
+                !b.isReviewed
+            );
+            setCompletedBookings(unreviewed);
+          } catch (e) {
+            console.error('Failed to load completed bookings:', e);
+            setCompletedBookings([]);
+          }
         }
       } catch (err: any) {
         setError(err?.response?.data?.message || 'Không thể tải chi tiết gian hàng.');
@@ -108,6 +142,40 @@ export default function BoothDetail() {
 
     load();
   }, [boothId, user]);
+
+  const handleReviewSubmit = async () => {
+    if (completedBookings.length === 0) return;
+    const targetBooking = completedBookings[0];
+    setReviewSubmitting(true);
+    try {
+      await createReview({
+        bookingId: targetBooking._id,
+        rating: reviewRating,
+        comment: reviewComment
+      });
+      // reload reviews
+      if (vendor?._id) {
+        const reviewResult = await getVendorReviews(vendor._id);
+        setReviews(reviewResult || []);
+        
+        // update average rating
+        const totalRating = (reviewResult || []).reduce((acc: number, curr: any) => acc + curr.rating, 0);
+        const count = (reviewResult || []).length;
+        setVendor((prev: any) => prev ? {
+          ...prev,
+          averageRating: count > 0 ? totalRating / count : 0,
+          reviewCount: count
+        } : null);
+      }
+      setCompletedBookings(prev => prev.slice(1));
+      setReviewComment('');
+      setReviewRating(5);
+    } catch (error) {
+      console.error('Failed to submit review:', error);
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   const selectedPackage = useMemo(
     () => packages.find((item) => item._id === selectedPackageId) || null,
@@ -231,7 +299,7 @@ export default function BoothDetail() {
           <hr className="border-white/10" />
 
           {/* Packages */}
-          <section>
+          <section id="packages-section">
             <h2 className="text-2xl font-bold text-white mb-6">Các gói dịch vụ</h2>
 
             {/* Package Tabs */}
@@ -263,6 +331,15 @@ export default function BoothDetail() {
                     <div>
                       <h3 className="text-3xl font-bold text-white mb-3">{selectedPackage.name}</h3>
                       <p className="text-silver/70 max-w-xl">{selectedPackage.description}</p>
+                      {selectedPackage.stageLayout && selectedPackage.stageLayout.length > 0 && (
+                        <button
+                          onClick={() => handleOpen3D(selectedPackage.stageLayout!)}
+                          className="mt-4 flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan/20 to-purple-500/20 hover:from-cyan/30 hover:to-purple-500/30 text-cyan text-sm font-bold rounded-xl border border-cyan/30 hover:border-cyan/50 transition-all shadow-[0_0_15px_rgba(0,212,255,0.15)] group"
+                        >
+                          <span className="w-2.5 h-2.5 rounded-full bg-cyan animate-pulse group-hover:bg-purple-400 transition-colors" />
+                          Trải nghiệm 3D
+                        </button>
+                      )}
                     </div>
                     <div className="bg-cyan/10 border border-cyan/20 p-4 rounded-2xl md:text-right shrink-0">
                       <p className="text-sm font-semibold text-cyan uppercase tracking-wider mb-1">Trọn gói từ</p>
@@ -348,6 +425,92 @@ export default function BoothDetail() {
                 <span className="text-lg text-silver/50 font-normal ml-2">({reviews.length} đánh giá)</span>
               </h2>
             </div>
+
+            {/* Review Submission Form / Status Notice */}
+            {completedBookings.length > 0 ? (
+              <div className="mb-10 p-6 bg-white/[0.02] border border-white/10 rounded-3xl space-y-6">
+                <div>
+                  <h3 className="text-xl font-bold text-white mb-1">Đánh giá trải nghiệm của bạn</h3>
+                  <p className="text-sm text-silver/60">Bạn đã hoàn tất đặt lịch dịch vụ từ vendor này. Hãy để lại đánh giá của bạn nhé!</p>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => {
+                      const isFilled = reviewHoverRating !== null ? star <= reviewHoverRating : star <= reviewRating;
+                      return (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setReviewRating(star)}
+                          onMouseEnter={() => setReviewHoverRating(star)}
+                          onMouseLeave={() => setReviewHoverRating(null)}
+                          className="p-1 focus:outline-none transition-transform hover:scale-125"
+                        >
+                          <Star
+                            className={`w-8 h-8 transition-all duration-300 ${isFilled ? 'text-yellow-400 fill-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]' : 'text-slate-600'
+                              }`}
+                          />
+                        </button>
+                      );
+                    })}
+                    <span className="text-sm font-bold tracking-widest uppercase text-cyan bg-cyan/10 px-3 py-1 rounded-full border border-cyan/20 ml-2">
+                      {reviewRating === 5 && 'Tuyệt vời!'}
+                      {reviewRating === 4 && 'Rất tốt'}
+                      {reviewRating === 3 && 'Bình thường'}
+                      {reviewRating === 2 && 'Kém'}
+                      {reviewRating === 1 && 'Rất tệ'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <textarea
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
+                      placeholder="Viết nhận xét của bạn để giúp người khác đưa ra quyết định tốt hơn..."
+                      rows={3}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white placeholder:text-silver/30 focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all resize-none text-sm"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleReviewSubmit}
+                    disabled={reviewSubmitting}
+                    className="w-full md:w-auto px-6 py-2.5 rounded-xl bg-cyan text-navy font-bold uppercase tracking-wider hover:bg-cyan/90 disabled:opacity-50 transition-colors shadow-[0_0_20px_rgba(0,212,255,0.2)] self-start"
+                  >
+                    {reviewSubmitting ? 'Đang gửi...' : 'Gửi đánh giá'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-10 p-6 bg-white/[0.01] border border-dashed border-white/10 rounded-3xl flex flex-col items-center text-center gap-2">
+                <Info className="w-8 h-8 text-cyan/60" />
+                <p className="text-silver/80 text-sm font-medium">Bạn muốn đánh giá nhà cung cấp này?</p>
+                <p className="text-xs text-silver/50 max-w-lg leading-relaxed">
+                  Để đảm bảo tính trung thực và khách quan, ClickPick chỉ cho phép những tài khoản đã thực hiện đặt lịch và hoàn tất sử dụng dịch vụ (Trạng thái: Completed) gửi đánh giá.
+                </p>
+                {!user ? (
+                  <Link
+                    to="/login"
+                    className="mt-2 text-xs font-bold text-cyan hover:underline uppercase tracking-wider"
+                  >
+                    Đăng nhập để đặt lịch ngay &rarr;
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => {
+                      const element = document.getElementById('packages-section');
+                      if (element) {
+                        element.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
+                    className="mt-2 text-xs font-bold text-cyan hover:underline uppercase tracking-wider"
+                  >
+                    Xem các gói dịch vụ & Đặt lịch &rarr;
+                  </button>
+                )}
+              </div>
+            )}
 
             {reviews.length > 0 && (
               <div className="grid md:grid-cols-[1fr_2fr] gap-8 mb-10 items-center">
@@ -499,6 +662,75 @@ export default function BoothDetail() {
           onNext={showNextLightbox}
         />
       )}
+
+      {/* 3D Preview Modal */}
+      <AnimatePresence>
+        {show3DModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-navy border border-white/10 rounded-3xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden shadow-2xl relative"
+            >
+              {/* Header */}
+              <div className="p-5 border-b border-white/5 flex items-center justify-between bg-navy/95">
+                <div>
+                  <span className="text-[10px] text-cyan font-bold uppercase tracking-wider">MÔ PHỎNG KHÔNG GIAN 3D 360°</span>
+                  <h3 className="text-base font-bold text-white">{selectedPackage?.name || 'Sân khấu mẫu'}</h3>
+                </div>
+                <button
+                  onClick={handleClose3D}
+                  className="p-2 rounded-full hover:bg-white/5 text-silver hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* 3D Viewer */}
+              <div className="flex-1 min-h-0 p-4 flex flex-col">
+                <React.Suspense fallback={
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+                    <Loader2 className="w-8 h-8 text-cyan animate-spin" />
+                    <span className="text-xs text-white/50">Đang khởi tạo không gian 3D...</span>
+                  </div>
+                }>
+                  <ThreeDViewer />
+                </React.Suspense>
+              </div>
+
+              {/* Footer */}
+              <div className="p-5 border-t border-white/5 flex items-center justify-between bg-navy/95">
+                <div className="text-xs text-silver/60">
+                  Sử dụng <span className="text-white font-semibold">chuột trái</span> để xoay 360°, <span className="text-white font-semibold">cuộn chuột</span> để phóng to/thu nhỏ.
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-cyan">
+                    {selectedPackage ? toCurrency(selectedPackage.price) : '--'}
+                  </span>
+                  <button
+                    onClick={() => {
+                      handleClose3D();
+                      const element = document.getElementById('packages-section');
+                      if (element) {
+                        element.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
+                    className="px-5 py-2 bg-cyan text-navy hover:bg-cyan/90 font-bold text-xs rounded-xl uppercase tracking-wider transition-all"
+                  >
+                    Đóng & Đặt lịch
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

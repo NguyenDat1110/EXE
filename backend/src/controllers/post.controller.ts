@@ -52,7 +52,7 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const { title, content, eventType, images } = req.body;
+    const { title, content, eventType, images, packageId } = req.body;
 
     if (!title || !content) {
       res.status(400).json({ message: 'Tiêu đề và nội dung không được để trống' });
@@ -69,6 +69,7 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
       content,
       eventType,
       images: imageUrls,
+      packageId: packageId || undefined,
     });
 
     // Notify all admins about new post
@@ -118,12 +119,21 @@ export const getAllPosts = async (req: AuthRequest, res: Response): Promise<void
       Post.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit),
+        .limit(limit)
+        .populate('packageId'),
       Post.countDocuments(filter),
     ]);
 
+    const postsWithLikes = posts.map(post => {
+      const postObj = post.toObject();
+      return {
+        ...postObj,
+        isLiked: req.user ? (post.likedBy || []).some(id => String(id) === String(req.user!.id)) : false
+      };
+    });
+
     res.json({
-      posts,
+      posts: postsWithLikes,
       pagination: {
         total,
         page,
@@ -134,6 +144,68 @@ export const getAllPosts = async (req: AuthRequest, res: Response): Promise<void
   } catch (err) {
     console.error('getAllPosts error:', err);
     res.status(500).json({ message: 'Lỗi server khi lấy bài viết' });
+  }
+};
+
+// Toggle Like Post
+export const toggleLikePost = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Yêu cầu xác thực.' });
+      return;
+    }
+    const { postId } = req.params;
+    const post = await Post.findById(postId);
+    if (!post) {
+      res.status(404).json({ message: 'Không tìm thấy bài viết.' });
+      return;
+    }
+
+    const userId = new Types.ObjectId(req.user.id);
+    const likedBy = post.likedBy || [];
+    const index = likedBy.findIndex(id => String(id) === String(userId));
+
+    if (index > -1) {
+      // Unlike
+      likedBy.splice(index, 1);
+      post.likes = Math.max(0, post.likes - 1);
+    } else {
+      // Like
+      likedBy.push(userId);
+      post.likes = (post.likes || 0) + 1;
+    }
+
+    post.likedBy = likedBy;
+    await post.save();
+
+    res.json({ message: 'Thành công', likes: post.likes, isLiked: index === -1 });
+  } catch (err) {
+    console.error('toggleLikePost error:', err);
+    res.status(500).json({ message: 'Lỗi server khi thích bài viết' });
+  }
+};
+
+// Get Liked Posts for current user
+export const getLikedPosts = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Yêu cầu xác thực.' });
+      return;
+    }
+    const posts = await Post.find({
+      likedBy: new Types.ObjectId(req.user.id),
+      isPublished: true
+    }).sort({ createdAt: -1 }).populate('packageId');
+
+    const postsWithLikes = posts.map(post => ({
+      ...post.toObject(),
+      isLiked: true
+    }));
+
+    res.json({ posts: postsWithLikes });
+  } catch (err) {
+    console.error('getLikedPosts error:', err);
+    res.status(500).json({ message: 'Lỗi server khi lấy bài viết đã thích' });
   }
 };
 
@@ -165,7 +237,7 @@ export const adminGetAllPosts = async (req: AuthRequest, res: Response): Promise
     }
 
     const [posts, total] = await Promise.all([
-      Post.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Post.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('packageId'),
       Post.countDocuments(filter),
     ]);
 
@@ -199,7 +271,7 @@ export const getMyPosts = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const posts = await Post.find({ vendorId: vendor._id }).sort({ createdAt: -1 });
+    const posts = await Post.find({ vendorId: vendor._id }).sort({ createdAt: -1 }).populate('packageId');
     res.json({ posts });
   } catch (err) {
     console.error('getMyPosts error:', err);
@@ -230,11 +302,12 @@ export const updatePost = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const { title, content, eventType, images } = req.body;
+    const { title, content, eventType, images, packageId } = req.body;
     if (title) post.title = title;
     if (content) post.content = content;
     if (eventType !== undefined) post.eventType = eventType;
     if (images !== undefined) post.images = images;
+    if (packageId !== undefined) post.packageId = packageId || undefined;
 
     await post.save();
     res.json({ message: 'Cập nhật bài viết thành công', post });
@@ -297,7 +370,7 @@ export const getPostById = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    const post = await Post.findOne({ _id: postId, isPublished: true });
+    const post = await Post.findOne({ _id: postId, isPublished: true }).populate('packageId');
 
     if (!post) {
       res.status(404).json({ message: 'Không tìm thấy bài viết.' });
@@ -331,7 +404,7 @@ export const getVendorPosts = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const posts = await Post.find({ vendorId, isPublished: true }).sort({ createdAt: -1 });
+    const posts = await Post.find({ vendorId, isPublished: true }).sort({ createdAt: -1 }).populate('packageId');
     const booth = await Booth.findOne({ vendorId, isActive: true });
 
     res.json({

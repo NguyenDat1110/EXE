@@ -54,6 +54,7 @@ export interface ExploreBoothPackage {
   description: string;
   images: string[];
   includedServices?: string[];
+  stageLayout?: any[];
 }
 
 export const getExploreCategories = async (): Promise<ExploreCategoryItem[]> => {

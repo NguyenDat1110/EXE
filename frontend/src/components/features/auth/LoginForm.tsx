@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Loader } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useGoogleLogin } from '@react-oauth/google';
 import { loginSchema, LoginFormData } from '../../../lib/schemas';
 import { useAuthStore, type UserRole } from '../../../store/authStore';
 
@@ -17,7 +18,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   const [showToast, setShowToast] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const { isLoading, login } = useAuthStore();
+  const { isLoading, login, loginWithGoogle } = useAuthStore();
 
   const {
     register,
@@ -29,6 +30,26 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       email: '',
       password: '',
     },
+  });
+
+  const handleGoogleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setErrorMsg(null);
+      try {
+        await loginWithGoogle(tokenResponse.access_token);
+        setShowToast(true);
+        setTimeout(() => {
+          const userRole = useAuthStore.getState().role || 'customer';
+          onSuccess(userRole);
+        }, 500);
+      } catch (error: any) {
+        console.error('Google login failed:', error);
+        setErrorMsg(
+          error?.response?.data?.message || 'Đăng nhập bằng Google thất bại.'
+        );
+      }
+    },
+    onError: () => setErrorMsg('Đăng nhập bằng Google thất bại.'),
   });
 
   const onSubmit = async (data: LoginFormData) => {
@@ -174,6 +195,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       {/* Google Login */}
       <button
         type="button"
+        onClick={() => handleGoogleLogin()}
         className="w-full py-2.5 rounded-lg glass-panel hover:glass-active transition-all font-medium text-white border border-white/10 flex items-center justify-center gap-2"
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24">

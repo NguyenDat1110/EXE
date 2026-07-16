@@ -9,7 +9,9 @@ export interface IPost extends Document {
   images: string[];
   eventType?: string;
   likes: number;
+  likedBy: Types.ObjectId[];
   isPublished: boolean;
+  packageId?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,7 +26,9 @@ const postSchema = new Schema<IPost>(
     images: { type: [String], default: [] },
     eventType: { type: String },
     likes: { type: Number, default: 0 },
+    likedBy: { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },
     isPublished: { type: Boolean, default: true },
+    packageId: { type: Schema.Types.ObjectId, ref: 'Package' },
   },
   { timestamps: true }
 );

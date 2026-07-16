@@ -3,6 +3,7 @@ import { Plus, Image, Trash2, X, Loader2, Calendar, Edit3, CheckCircle } from 'l
 import { createPost, getMyPosts, deletePost, updatePost, Post } from '../../services/postApi';
 import { ImageLightbox } from '../../components/ui/ImageLightbox';
 import { uploadToCloudinary } from '../../services/cloudinary';
+import { getMyPackages } from '../../services/packagesApi';
 
 const BASE_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
 
@@ -29,6 +30,8 @@ export default function VendorPosts() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [eventType, setEventType] = useState('');
+  const [packages, setPackages] = useState<any[]>([]);
+  const [selectedPackageId, setSelectedPackageId] = useState<string>('');
 
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -43,6 +46,7 @@ export default function VendorPosts() {
 
   useEffect(() => {
     fetchPosts();
+    fetchPackages();
   }, []);
 
   const fetchPosts = async () => {
@@ -54,6 +58,15 @@ export default function VendorPosts() {
       setError('Không thể tải bài viết');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPackages = async () => {
+    try {
+      const res = await getMyPackages();
+      setPackages(res.data || []);
+    } catch (err) {
+      console.error('Không thể tải danh sách gói dịch vụ', err);
     }
   };
 
@@ -82,6 +95,7 @@ export default function VendorPosts() {
     setTitle('');
     setContent('');
     setEventType('');
+    setSelectedPackageId('');
     setExistingImages([]);
     setSelectedFiles([]);
     setNewPreviews([]);
@@ -115,7 +129,8 @@ export default function VendorPosts() {
         title: title.trim(),
         content: content.trim(),
         eventType,
-        images: finalImages
+        images: finalImages,
+        packageId: selectedPackageId || undefined
       };
 
       if (editingPost) {
@@ -140,6 +155,7 @@ export default function VendorPosts() {
     setTitle(post.title);
     setContent(post.content);
     setEventType(post.eventType || '');
+    setSelectedPackageId(post.packageId?._id || post.packageId || '');
     setExistingImages(post.images || []);
     setSelectedFiles([]);
     setNewPreviews([]);
@@ -214,6 +230,27 @@ export default function VendorPosts() {
                     <option key={t} value={t} className="bg-navy">{t}</option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-silver mb-2">Đính kèm Gói dịch vụ (Không bắt buộc)</label>
+                <select
+                  value={selectedPackageId}
+                  onChange={(e) => setSelectedPackageId(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan/50"
+                >
+                  <option value="">-- Không đính kèm gói --</option>
+                  {packages.map((pkg) => (
+                    <option key={pkg._id} value={pkg._id} className="bg-navy">
+                      {pkg.name} ({pkg.price.toLocaleString('vi-VN')}đ) {pkg.stageLayout && pkg.stageLayout.length > 0 ? ' [Có Sân khấu 3D]' : ''}
+                    </option>
+                  ))}
+                </select>
+                {selectedPackageId && (
+                  <p className="text-xs text-cyan/70 mt-1">
+                    * Bản thiết kế sân khấu 3D của gói này sẽ tự động được hiển thị trên bài viết.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -347,9 +384,16 @@ export default function VendorPosts() {
                     </span>
                   )}
                   <h3 className="font-semibold text-white text-base">{post.title}</h3>
-                  <div className="flex items-center gap-1.5 mt-1 text-xs text-white/40">
-                    <Calendar className="w-3 h-3" />
-                    {formatDate(post.createdAt)}
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-1.5 text-xs text-white/40">
+                      <Calendar className="w-3 h-3" />
+                      {formatDate(post.createdAt)}
+                    </div>
+                    {post.packageId && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-500/10 border border-purple-500/25 text-purple-300 text-xs rounded-full">
+                        Gói: {post.packageId.name || 'Gói dịch vụ'} {post.packageId.stageLayout && post.packageId.stageLayout.length > 0 ? ' (3D)' : ''}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1">

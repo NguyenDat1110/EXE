@@ -178,7 +178,8 @@ export const getBoothDetail = async (req: Request, res: Response): Promise<void>
         serviceDuration: pkg.serviceDuration || '',
         description: pkg.description || '',
         images: Array.isArray(pkg.images) ? pkg.images : [],
-        includedServices: Array.isArray(pkg.includedServices) ? pkg.includedServices : []
+        includedServices: Array.isArray(pkg.includedServices) ? pkg.includedServices : [],
+        stageLayout: Array.isArray(pkg.stageLayout) ? pkg.stageLayout : undefined
       }))
     });
   } catch (error) {

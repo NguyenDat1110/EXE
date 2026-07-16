@@ -102,6 +102,18 @@ export const createReview = async (req: AuthRequest, res: Response): Promise<voi
       select: 'name avatar email'
     });
 
+    // Send Notification to Vendor
+    const vendorUser = await Vendor.findById(booking.vendorId).select('userId');
+    if (vendorUser) {
+      await sendNotification(
+        vendorUser.userId,
+        'Đánh giá mới',
+        `Bạn nhận được 1 đánh giá ${parsedRating} sao từ đơn đặt chỗ ${booking._id.toString().slice(-6)}.`,
+        'review',
+        `/vendor/reviews`
+      );
+    }
+
     res.status(201).json({
       message: 'Đánh giá dịch vụ thành công!',
       review

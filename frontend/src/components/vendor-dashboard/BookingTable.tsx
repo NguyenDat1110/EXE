@@ -254,7 +254,7 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
                     <td className="p-4 text-sm font-medium text-primary">{formatVND(booking.totalPrice || 0)}</td>
                     <td className="p-4"><StatusBadge status={booking.status} /></td>
                     <td className="p-4 text-center">
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); setSelectedBooking(booking); }}
                         className="p-2 rounded-lg hover:bg-white/10 transition-colors inline-flex"
                       >
@@ -282,9 +282,8 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
               <button
                 key={p}
                 onClick={() => setPage(p)}
-                className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                  p === page ? 'bg-primary text-background-dark font-semibold' : 'bg-white/5 hover:bg-white/10 text-slate-400'
-                }`}
+                className={`px-3 py-1 rounded-lg text-sm transition-colors ${p === page ? 'bg-primary text-background-dark font-semibold' : 'bg-white/5 hover:bg-white/10 text-slate-400'
+                  }`}
               >
                 {p}
               </button>
@@ -303,14 +302,14 @@ export default function BookingTable({ showToast }: { showToast: (msg: string, t
       <AnimatePresence>
         {selectedBooking && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedBooking(null)}
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
             />
-            <motion.div 
+            <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}

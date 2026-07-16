@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Mail, MapPin, Phone, Star } from 'lucide-react';
+import { Mail, MapPin, Phone, Star, ChevronRight, CheckCircle2, Building, ShieldCheck, Users, Clock, Info } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ExploreBoothPackage,
   getBoothDetail,
@@ -28,6 +29,24 @@ const formatDuration = (durationMinutes?: string | number | null) => {
   if (hours > 0) return `${hours} giờ`;
   return `${minutes} phút`;
 };
+
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          className={`w-4 h-4 ${rating >= star
+            ? 'fill-yellow-400 text-yellow-400'
+            : rating >= star - 0.5
+              ? 'fill-yellow-400/50 text-yellow-400'
+              : 'fill-transparent text-silver/30'
+            }`}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function BoothDetail() {
   const { boothId } = useParams();
@@ -89,282 +108,365 @@ export default function BoothDetail() {
   );
 
   const selectedPackageImages = selectedPackage?.images || [];
+  const galleryImages = [booth?.coverImage, ...(booth?.gallery || [])].filter(Boolean) as string[];
 
   if (loading) {
-    return <div className="h-72 rounded-2xl border border-white/10 bg-white/[0.03] animate-pulse" />;
-  }
-
-  if (error) {
-    return <div className="rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">{error}</div>;
-  }
-
-  if (!booth || !vendor) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-silver/70">
-        Không có dữ liệu gian hàng.
+      <div className="space-y-8 animate-pulse">
+        <div className="h-8 bg-white/5 rounded-lg w-64" />
+        <div className="h-[500px] bg-white/5 rounded-3xl" />
+        <div className="grid lg:grid-cols-[2fr_1fr] gap-8">
+          <div className="h-[400px] bg-white/5 rounded-3xl" />
+          <div className="h-[400px] bg-white/5 rounded-3xl" />
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-8">
-      <Link to="/explore" className="inline-flex items-center text-cyan text-sm hover:underline">
-        Quay lại Explore
-      </Link>
+  if (error || !booth || !vendor) {
+    return (
+      <div className="rounded-3xl border border-red-500/20 bg-red-500/10 p-12 text-center flex flex-col items-center">
+        <Info className="w-12 h-12 text-red-400 mb-4" />
+        <h3 className="text-xl font-bold text-white mb-2">Đã xảy ra lỗi</h3>
+        <p className="text-red-200">{error || 'Không tìm thấy dữ liệu gian hàng.'}</p>
+        <Link to="/explore" className="mt-6 px-6 py-2 bg-white/10 rounded-xl text-white hover:bg-white/20 transition-colors">Quay lại Explore</Link>
+      </div>
+    );
+  }
 
-      <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03]">
-        <div className="relative h-72 md:h-96 bg-slate-custom">
-          {booth.coverImage ? (
-            <img src={booth.coverImage} alt={booth.name} className="h-full w-full object-cover" />
-          ) : (
-            <div className="h-full w-full flex items-center justify-center text-silver/50">No cover image</div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-navy to-transparent" />
-          <div className="absolute bottom-8 left-8 right-8">
-            <p className="text-xs uppercase tracking-[0.2em] text-cyan/90 mb-2">{booth.eventType}</p>
-            <h1 className="text-3xl md:text-5xl font-serif italic text-white leading-tight">{booth.name}</h1>
-            {selectedPackage && (
-              <p className="mt-4 max-w-2xl text-silver/80 text-sm md:text-base">Gói chọn: <span className="font-semibold text-white">{selectedPackage.name}</span> — {toCurrency(selectedPackage.price)} | Đặt cọc {toCurrency(selectedPackage.depositAmount)}</p>
-            )}
+  // Rating Distribution
+  const ratingCounts = [5, 4, 3, 2, 1].map(star => ({
+    star,
+    count: reviews.filter(r => Math.round(r.rating) === star).length
+  }));
+  const maxRatingCount = Math.max(...ratingCounts.map(r => r.count), 1);
+
+  return (
+    <div className="space-y-8 pb-10">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-2 text-sm font-medium text-silver/60">
+        <Link to="/explore" className="hover:text-cyan transition-colors">Explore</Link>
+        <ChevronRight className="w-4 h-4" />
+        {booth.category && (
+          <>
+            <Link to={`/explore/${booth.category}`} className="hover:text-cyan transition-colors capitalize">
+              {booth.category}
+            </Link>
+            <ChevronRight className="w-4 h-4" />
+          </>
+        )}
+        <span className="text-white truncate max-w-[200px] md:max-w-xs">{booth.name}</span>
+      </nav>
+
+      {/* Title Header */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="px-3 py-1 bg-cyan/10 text-cyan text-xs font-bold uppercase tracking-widest rounded-full border border-cyan/20">
+            {booth.eventType}
+          </span>
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-yellow-400/10 text-yellow-400 text-xs font-bold rounded-full border border-yellow-400/20">
+            <Star className="w-3.5 h-3.5 fill-current" />
+            {vendor.averageRating > 0 ? vendor.averageRating.toFixed(1) : 'Mới'}
           </div>
         </div>
+        <h1 className="text-4xl md:text-5xl font-serif italic text-white mb-4">{booth.name}</h1>
+        <div className="flex items-center gap-2 text-silver/80">
+          <MapPin className="w-4 h-4 text-cyan" />
+          <span>{booth.address}</span>
+        </div>
+      </div>
 
-        <div className="p-6 grid gap-8 lg:grid-cols-[1.3fr_0.9fr]">
-          <div className="space-y-6">
-            <div className="rounded-3xl glass-card p-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.16em] text-silver/70">Thông tin gói dịch vụ</p>
-                  <h2 className="mt-2 text-3xl font-semibold text-white">{selectedPackage?.name || 'Chọn gói dịch vụ'}</h2>
-                </div>
-                <div className="rounded-2xl bg-navy/70 px-4 py-3 text-right">
-                  <p className="text-sm text-silver/70">Giá trọn gói</p>
-                  <p className="text-2xl font-semibold text-cyan">{selectedPackage ? toCurrency(selectedPackage.price) : '...'}</p>
-                </div>
-              </div>
-
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-silver/70">Đặt cọc</p>
-                  <p className="mt-2 text-lg font-semibold text-white">{selectedPackage ? toCurrency(selectedPackage.depositAmount) : '...'}</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-silver/70">Thời lượng</p>
-                  <p className="mt-2 text-lg font-semibold text-white">
-                    {selectedPackage?.serviceDuration ? formatDuration(selectedPackage.serviceDuration) : 'Chưa cập nhật'}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-silver/70">Số người tối thiểu</p>
-                  <p className="mt-2 text-lg font-semibold text-white">
-                    {selectedPackage?.minParticipants ? `${selectedPackage.minParticipants} người` : 'Chưa cập nhật'}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-silver/70">Số người tối đa</p>
-                  <p className="mt-2 text-lg font-semibold text-white">
-                    {selectedPackage?.maxParticipants ? `${selectedPackage.maxParticipants} người` : 'Chưa cập nhật'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 text-silver/80 leading-relaxed">
-                <p>{selectedPackage?.description || 'Chọn một gói dịch vụ bên dưới để xem chi tiết và ảnh minh họa.'}</p>
-              </div>
-
-              {selectedPackage ? (
-                <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                  <p className="text-sm uppercase tracking-[0.16em] text-silver/70 mb-3">Bao gồm</p>
-                  {selectedPackage.includedServices && selectedPackage.includedServices.length > 0 ? (
-                    <ul className="space-y-2 text-silver/80 text-sm">
-                      {selectedPackage.includedServices.map((service, index) => (
-                        <li key={`${service}-${index}`} className="flex items-start gap-3">
-                          <span className="mt-1 h-2 w-2 rounded-full bg-cyan" />
-                          <span>{service}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-silver/60">Chưa có thông tin dịch vụ đi kèm.</p>
-                  )}
-                </div>
-              ) : null}
+  {/* Image Mosaic Gallery */ }
+  {
+    galleryImages.length > 0 && (
+      <div className={`grid grid-cols-1 md:grid-cols-4 ${galleryImages.length === 1 ? 'grid-rows-1' : 'grid-rows-2'} gap-2 h-[400px] md:h-[500px] rounded-3xl overflow-hidden`}>
+        <div className={`${galleryImages.length === 1 ? 'md:col-span-4' :
+          galleryImages.length === 2 ? 'md:col-span-3' :
+            'md:col-span-2'
+          } ${galleryImages.length === 1 ? 'row-span-1' : 'row-span-2'} relative group cursor-pointer`}>
+          <img src={galleryImages[0]} alt="Cover" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+          <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
             </div>
+            {galleryImages.slice(1, 5).map((img, idx) => (
+              <div key={idx} className={`relative hidden md:block group cursor-pointer overflow-hidden ${galleryImages.length === 2 ? 'md:col-span-1 row-span-2' : ''
+                }`}>
+                <img src={img} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
+                {idx === 3 && galleryImages.length > 5 && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                    <span className="text-white font-bold text-lg">+{galleryImages.length - 5} ảnh</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+      )}
 
-            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-              <p className="text-sm uppercase tracking-[0.16em] text-silver/70 mb-4">Lựa chọn gói</p>
-              {packages.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/15 p-6 text-center text-sm text-silver/60">
-                  Gian hàng chưa có package khả dụng.
+          {/* Main Content Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 xl:gap-12 items-start relative">
+
+            {/* Left Column: Details */}
+            <div className="space-y-12">
+
+              {/* About */}
+              <section>
+                <h2 className="text-2xl font-bold text-white mb-4">Giới thiệu về không gian</h2>
+                <div className="text-silver/80 leading-relaxed whitespace-pre-wrap text-lg">
+                  {booth.description || 'Chưa có thông tin mô tả chi tiết cho gian hàng này.'}
                 </div>
-              ) : (
-                <div className="grid gap-3 md:grid-cols-2">
+              </section>
+
+              <hr className="border-white/10" />
+
+              {/* Packages */}
+              <section>
+                <h2 className="text-2xl font-bold text-white mb-6">Các gói dịch vụ</h2>
+
+                {/* Package Tabs */}
+                <div className="flex overflow-x-auto gap-2 pb-4 scrollbar-hide">
                   {packages.map((pkg) => (
                     <button
                       key={pkg._id}
                       onClick={() => setSelectedPackageId(pkg._id)}
-                      className={`rounded-3xl border p-4 text-left transition-colors ${
-                        selectedPackageId === pkg._id
-                          ? 'border-cyan/50 bg-cyan/10'
-                          : 'border-white/10 bg-white/[0.03] hover:border-white/25'
-                      }`}
+                      className={`px-5 py-3 rounded-xl font-semibold whitespace-nowrap transition-all ${selectedPackageId === pkg._id
+                        ? 'bg-white text-navy shadow-lg scale-105 transform origin-bottom'
+                        : 'bg-white/5 text-silver hover:bg-white/10 border border-white/10'
+                        }`}
                     >
-                      <div className="flex items-center justify-between gap-4">
-                        <h3 className="font-semibold text-white">{pkg.name}</h3>
-                        <span className="text-sm text-silver/70">{pkg.serviceDuration ? formatDuration(pkg.serviceDuration) : 'N/A'}</span>
-                      </div>
-                      <p className="mt-3 text-cyan font-semibold">{toCurrency(pkg.price)}</p>
-                      <p className="mt-2 text-xs text-silver/70">Đặt cọc: {toCurrency(pkg.depositAmount)}</p>
-                      <p className="mt-1 text-xs text-silver/70">
-                        {pkg.minParticipants > 0 || pkg.maxParticipants > 0
-                          ? `Số người: ${pkg.minParticipants || '?'} - ${pkg.maxParticipants || '?'}`
-                          : 'Số người: Chưa cập nhật'}
-                      </p>
+                      {pkg.name}
                     </button>
                   ))}
                 </div>
-              )}
-            </div>
 
-            {selectedPackageImages.length > 0 && (
-              <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-                <p className="text-sm uppercase tracking-[0.16em] text-silver/70 mb-4">Ảnh gói đã chọn</p>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {selectedPackageImages.map((image, index) => (
-                    <div key={`${image}-${index}`} className="h-36 rounded-3xl overflow-hidden border border-white/10 bg-slate-custom">
-                      <img src={image} alt={`${selectedPackage?.name} ${index + 1}`} className="h-full w-full object-cover" />
+                <AnimatePresence mode="wait">
+                  {selectedPackage && (
+                    <motion.div
+                      key={selectedPackage._id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="glass-panel rounded-3xl p-6 md:p-8 border border-white/10"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
+                        <div>
+                          <h3 className="text-3xl font-bold text-white mb-3">{selectedPackage.name}</h3>
+                          <p className="text-silver/70 max-w-xl">{selectedPackage.description}</p>
+                        </div>
+                        <div className="bg-cyan/10 border border-cyan/20 p-4 rounded-2xl md:text-right shrink-0">
+                          <p className="text-sm font-semibold text-cyan uppercase tracking-wider mb-1">Trọn gói từ</p>
+                          <p className="text-3xl font-bold text-white">{toCurrency(selectedPackage.price)}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                        <div className="bg-white/5 rounded-2xl p-4 flex flex-col gap-2 border border-white/5">
+                          <Clock className="w-5 h-5 text-cyan" />
+                          <span className="text-xs text-silver/60 uppercase">Thời lượng</span>
+                          <span className="font-semibold text-white">{selectedPackage.serviceDuration ? formatDuration(selectedPackage.serviceDuration) : '--'}</span>
+                        </div>
+                        <div className="bg-white/5 rounded-2xl p-4 flex flex-col gap-2 border border-white/5">
+                          <Users className="w-5 h-5 text-cyan" />
+                          <span className="text-xs text-silver/60 uppercase">Tối đa</span>
+                          <span className="font-semibold text-white">{selectedPackage.maxParticipants ? `${selectedPackage.maxParticipants} người` : '--'}</span>
+                        </div>
+                        <div className="bg-white/5 rounded-2xl p-4 flex flex-col gap-2 border border-white/5">
+                          <Building className="w-5 h-5 text-cyan" />
+                          <span className="text-xs text-silver/60 uppercase">Tối thiểu</span>
+                          <span className="font-semibold text-white">{selectedPackage.minParticipants ? `${selectedPackage.minParticipants} người` : '--'}</span>
+                        </div>
+                        <div className="bg-white/5 rounded-2xl p-4 flex flex-col gap-2 border border-white/5">
+                          <ShieldCheck className="w-5 h-5 text-cyan" />
+                          <span className="text-xs text-silver/60 uppercase">Cọc trước</span>
+                          <span className="font-semibold text-white">{toCurrency(selectedPackage.depositAmount)}</span>
+                        </div>
+                      </div>
+
+                      {selectedPackage.includedServices && selectedPackage.includedServices.length > 0 && (
+                        <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
+                          <h4 className="font-bold text-white mb-4">Dịch vụ bao gồm</h4>
+                          <ul className="grid sm:grid-cols-2 gap-3">
+                            {selectedPackage.includedServices.map((service, idx) => (
+                              <li key={idx} className="flex items-start gap-2 text-silver/90">
+                                <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
+                                <span>{service}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {selectedPackageImages.length > 0 && (
+                        <div className="mt-8">
+                          <h4 className="font-bold text-white mb-4">Hình ảnh minh họa</h4>
+                          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
+                            {selectedPackageImages.map((img, idx) => (
+                              <img
+                                key={idx}
+                                src={img}
+                                alt={`${selectedPackage.name} ${idx + 1}`}
+                                className="w-64 h-48 object-cover rounded-2xl shrink-0 snap-start border border-white/10"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </section>
+
+              <hr className="border-white/10" />
+
+              {/* Reviews */}
+              <section>
+                <div className="flex items-center gap-3 mb-8">
+                  <Star className="w-8 h-8 text-yellow-400 fill-current" />
+                  <h2 className="text-2xl md:text-3xl font-bold text-white">
+                    {vendor.averageRating > 0 ? vendor.averageRating.toFixed(1) : 'Chưa có đánh giá'}
+                    <span className="text-lg text-silver/50 font-normal ml-2">({reviews.length} đánh giá)</span>
+                  </h2>
+                </div>
+
+                {reviews.length > 0 && (
+                  <div className="grid md:grid-cols-[1fr_2fr] gap-8 mb-10 items-center">
+                    <div className="space-y-3">
+                      {ratingCounts.map(({ star, count }) => (
+                        <div key={star} className="flex items-center gap-3">
+                          <span className="text-sm font-medium w-3">{star}</span>
+                          <Star className="w-3.5 h-3.5 text-silver/40" />
+                          <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-yellow-400 rounded-full"
+                              style={{ width: `${(count / maxRatingCount) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                    <div className="bg-white/5 rounded-2xl p-6 border border-white/5 text-silver/80 text-sm">
+                      <span className="font-bold text-white block mb-2">Thông tin minh bạch</span>
+                      100% đánh giá đều từ khách hàng đã trải nghiệm và thanh toán qua nền tảng.
+                    </div>
+                  </div>
+                )}
 
-            {/* Reviews Section */}
-            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 space-y-6">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4 flex-wrap gap-3">
-                <div>
-                  <h3 className="text-2xl font-bold text-white">Đánh giá từ khách hàng</h3>
-                  <p className="text-xs text-silver/60 mt-1">Những nhận xét thực tế từ khách hàng đã trải nghiệm dịch vụ.</p>
-                </div>
-                <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2 rounded-2xl">
-                  <Star className="w-5 h-5 fill-current text-yellow-400" />
-                  <span className="text-lg font-bold text-white">
-                    {vendor.averageRating > 0 ? vendor.averageRating.toFixed(1) : 'N/A'}
-                  </span>
-                  <span className="text-sm text-silver/60">({reviews.length} đánh giá)</span>
-                </div>
-              </div>
-
-              {reviews.length === 0 ? (
-                <div className="text-center py-8 text-silver/50 text-sm">
-                  Chưa có đánh giá nào cho nhà cung cấp này.
-                </div>
-              ) : (
-                <div className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-6">
                   {reviews.map((rev) => (
-                    <div key={rev._id} className="border border-white/5 bg-white/[0.01] rounded-2xl p-4 space-y-3">
-                      <div className="flex items-center justify-between">
+                    <div key={rev._id} className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl space-y-4">
+                      <div className="flex justify-between items-start">
                         <div className="flex items-center gap-3">
-                          <img
-                            src={rev.customerId?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rev.customerId?._id}`}
-                            alt={rev.customerId?.name}
-                            className="w-10 h-10 rounded-full border border-white/10 object-cover"
-                          />
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan/40 to-blue-600/40 p-0.5">
+                            <img
+                              src={rev.customerId?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rev.customerId?._id}`}
+                              alt={rev.customerId?.name}
+                              className="w-full h-full rounded-full object-cover"
+                            />
+                          </div>
                           <div>
-                            <h4 className="text-sm font-semibold text-white">{rev.customerId?.name || 'Khách hàng'}</h4>
+                            <p className="font-bold text-white text-sm">{rev.customerId?.name || 'Khách hàng'}</p>
                             <p className="text-xs text-silver/50">{new Date(rev.createdAt).toLocaleDateString('vi-VN')}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 bg-yellow-400/10 px-2.5 py-1 rounded-full text-yellow-400 text-xs font-bold">
-                          <Star className="w-3.5 h-3.5 fill-current" />
-                          <span>{rev.rating} ★</span>
-                        </div>
+                        <StarRating rating={rev.rating} />
                       </div>
-                      {rev.comment && (
-                        <p className="text-sm text-silver/80 pl-1">{rev.comment}</p>
-                      )}
+
+                      {rev.comment && <p className="text-silver/90 text-sm leading-relaxed">{rev.comment}</p>}
+
                       {rev.vendorReply && (
-                        <div className="ml-4 border-l-2 border-cyan/30 pl-4 py-1 bg-cyan/5 rounded-r-xl">
-                          <p className="text-xs font-semibold text-cyan mb-1">Phản hồi từ nhà cung cấp</p>
+                        <div className="mt-4 p-4 bg-cyan/5 border border-cyan/10 rounded-2xl rounded-tl-none">
+                          <p className="text-xs font-bold text-cyan mb-1 flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" /> Phản hồi từ Vendor
+                          </p>
                           <p className="text-sm text-silver/80">{rev.vendorReply}</p>
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
-              )}
+              </section>
             </div>
-          </div>
 
-          <aside className="space-y-6">
-            <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 space-y-5">
-              <div className="flex items-center gap-4">
-                <div className="h-16 w-16 overflow-hidden rounded-2xl border border-cyan/30 bg-slate-custom">
-                  <img
-                    src={vendor.avatar || 'https://api.dicebear.com/7.x/shapes/svg?seed=vendor'}
-                    alt={vendor.name}
-                    className="h-full w-full object-cover"
-                  />
+            {/* Right Column: Sticky Sidebar */}
+            <aside className="lg:sticky top-24 space-y-6">
+              <div className="glass-panel p-6 rounded-3xl border border-white/10 shadow-2xl">
+                <h3 className="text-xl font-bold text-white mb-6">Tóm tắt đơn đặt</h3>
+
+                <div className="space-y-4 mb-6">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-silver/70">Gói đã chọn</span>
+                    <span className="font-semibold text-white max-w-[150px] text-right truncate">{selectedPackage?.name || '--'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-silver/70">Giá trọn gói</span>
+                    <span className="font-bold text-white">{selectedPackage ? toCurrency(selectedPackage.price) : '--'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm py-3 border-y border-white/10">
+                    <span className="text-silver/70 font-medium">Đặt cọc ngay</span>
+                    <span className="font-bold text-cyan text-lg">{selectedPackage ? toCurrency(selectedPackage.depositAmount) : '--'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-silver/50">
+                    <span>Còn lại thanh toán sau</span>
+                    <span>{selectedPackage ? toCurrency(selectedPackage.price - selectedPackage.depositAmount) : '--'}</span>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm uppercase tracking-[0.18em] text-silver/70">Nhà cung cấp</p>
-                  <h3 className="text-xl font-semibold text-white">{vendor.name}</h3>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-yellow-300">
-                <Star className="h-4 w-4 fill-current" />
-                <span>{vendor.averageRating > 0 ? vendor.averageRating.toFixed(1) : 'N/A'}</span>
-                <span className="text-silver/60">({vendor.reviewCount} đánh giá)</span>
-              </div>
-              <p className="text-sm text-silver/75 leading-relaxed">{vendor.description || 'Nhà cung cấp chưa cập nhật thông tin.'}</p>
-              <div className="rounded-3xl bg-navy/80 p-4 text-sm text-silver/70 space-y-3">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-cyan" />
-                  <span>{vendor.address || 'Chưa cập nhật địa chỉ'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-cyan" />
-                  <span>{contactUnlocked ? (vendor.phone || 'Chưa cập nhật số điện thoại') : 'Liên hệ sẽ được mở khi booking được xác nhận.'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-cyan" />
-                  <span>{contactUnlocked ? (vendor.email || 'Chưa cập nhật email') : 'Email nhà cung cấp bị ẩn cho đến khi booking xác nhận.'}</span>
-                </div>
-              </div>
-              <div className="rounded-3xl bg-slate-custom p-4 border border-white/10">
-                <p className="text-sm uppercase tracking-[0.16em] text-silver/70">Hỗ trợ tổ chức</p>
-                <p className="mt-2 text-white font-medium">Đội ngũ chuyên viên sự kiện của chúng tôi luôn hỗ trợ bạn lập kế hoạch chi tiết A-Z.</p>
-                <p className="text-sm text-silver/70">Liên hệ nhanh: <span className="text-cyan">1900 8888</span></p>
-              </div>
-              <div className="grid gap-3">
+
                 <Link
                   to={`/booths/${booth._id}/book?packageId=${selectedPackageId}`}
-                  className="block rounded-2xl bg-cyan px-4 py-3 text-center text-sm font-semibold text-navy transition hover:bg-cyan/90"
+                  className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold uppercase tracking-wider transition-all shadow-lg ${selectedPackageId
+                    ? 'bg-cyan text-navy hover:bg-cyan/90 shadow-cyan/20 hover:shadow-cyan/40'
+                    : 'bg-white/10 text-white/40 cursor-not-allowed'
+                    }`}
+                  onClick={(e) => { if (!selectedPackageId) e.preventDefault(); }}
                 >
-                  Đặt lịch ngay
+                  Tiếp tục đặt lịch <ChevronRight className="w-5 h-5" />
                 </Link>
+                <p className="text-center text-xs text-silver/50 mt-4">Bạn chưa bị trừ tiền ở bước này.</p>
+              </div>
+
+              <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-5">
+                <div className="flex items-center gap-4 border-b border-white/10 pb-4">
+                  <img
+                    src={vendor.avatar || `https://api.dicebear.com/7.x/shapes/svg?seed=${vendor._id}`}
+                    alt={vendor.name}
+                    className="w-16 h-16 rounded-2xl object-cover border border-white/10"
+                  />
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-silver/50">Nhà cung cấp</p>
+                    <Link to={`/vendor/${vendor._id}`} className="font-bold text-white hover:text-cyan transition-colors line-clamp-1">{vendor.name}</Link>
+                    <div className="flex items-center gap-1 mt-1 text-xs text-yellow-400">
+                      <Star className="w-3 h-3 fill-current" /> {vendor.averageRating > 0 ? vendor.averageRating.toFixed(1) : 'Mới'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center gap-3 text-silver/80">
+                    <MapPin className="w-4 h-4 text-cyan" />
+                    <span className="truncate">{vendor.address || 'Chưa cập nhật địa chỉ'}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-silver/80">
+                    <Phone className="w-4 h-4 text-cyan" />
+                    <span>{contactUnlocked ? vendor.phone || '--' : 'Bảo mật (Chờ đặt cọc)'}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-silver/80">
+                    <Mail className="w-4 h-4 text-cyan" />
+                    <span className="truncate">{contactUnlocked ? vendor.email || '--' : 'Bảo mật (Chờ đặt cọc)'}</span>
+                  </div>
+                </div>
+
                 <a
                   href={contactUnlocked ? `mailto:${vendor.email}?subject=Tư vấn gói ${encodeURIComponent(selectedPackage?.name || booth.name)}` : '#'}
-                  onClick={(e) => {
-                    if (!contactUnlocked) e.preventDefault();
-                  }}
-                  className={`block rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-sm font-semibold transition ${
-                    contactUnlocked ? 'text-white hover:border-cyan/40 hover:text-cyan' : 'text-slate-500 cursor-not-allowed'
-                  }`}
+                  onClick={(e) => { if (!contactUnlocked) e.preventDefault(); }}
+                  className={`block w-full text-center py-3 rounded-xl text-sm font-semibold border transition-colors ${contactUnlocked
+                    ? 'border-cyan text-cyan hover:bg-cyan/10'
+                    : 'border-white/10 text-white/30 cursor-not-allowed bg-white/5'
+                    }`}
                 >
-                  Liên hệ tư vấn
+                  Liên hệ nhà cung cấp
                 </a>
               </div>
-              <Link
-                to={`/vendor/${vendor._id}`}
-                className="block rounded-2xl bg-cyan px-4 py-3 text-center text-sm font-semibold text-navy transition hover:bg-cyan/90"
-              >
-                Xem chi tiết nhà cung cấp
-              </Link>
-            </div>
-          </aside>
+            </aside>
+          </div>
         </div>
-      </section>
-    </div>
-  );
+        );
 }

@@ -186,3 +186,25 @@ export const getBoothDetail = async (req: Request, res: Response): Promise<void>
     res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
   }
 };
+
+export const getVendorFirstBooth = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { vendorId } = req.params;
+    if (!Types.ObjectId.isValid(vendorId)) {
+      res.status(400).json({ message: 'Mã vendor không hợp lệ.' });
+      return;
+    }
+
+    const booth = await Booth.findOne({ vendorId: new Types.ObjectId(vendorId), isActive: true }).lean();
+    
+    if (!booth) {
+      res.status(404).json({ message: 'Vendor chưa có gian hàng nào.' });
+      return;
+    }
+
+    res.status(200).json({ boothId: booth._id });
+  } catch (error) {
+    console.error('Get vendor first booth error:', error);
+    res.status(500).json({ message: 'Lỗi hệ thống. Vui lòng thử lại sau.' });
+  }
+};

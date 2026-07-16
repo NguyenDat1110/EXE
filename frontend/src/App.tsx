@@ -24,6 +24,8 @@ import BoothList from './pages/customer/BoothList';
 import BoothDetail from './pages/customer/BoothDetail';
 import BookingPage from './pages/BookingPage';
 import CustomerBookings from './pages/customer/Bookings';
+import PostDetail from './pages/customer/PostDetail';
+import VendorPublicProfile from './pages/customer/VendorPublicProfile';
 
 import { CustomerProfile } from './pages/profile/CustomerProfile';
 import { VendorProfile } from './pages/profile/VendorProfile';
@@ -38,6 +40,10 @@ import AdminDashboard from './pages/admin/Dashboard';
 import AdminUsers from './pages/admin/Users';
 import { AdminVendors } from './pages/admin/AdminVendors';
 import AdminArticles from './pages/admin/AdminArticles';
+import AdminPackages from './pages/admin/AdminPackages';
+import AdminComplaints from './pages/admin/AdminComplaints';
+import AdminSubscriptions from './pages/admin/AdminSubscriptions';
+import AdminLogs from './pages/admin/AdminLogs';
 import Timeline from './pages/customer/Timeline';
 import VendorPosts from './pages/vendor/VendorPosts';
 import VendorFeedback from './pages/vendor/Feedback';
@@ -105,6 +111,8 @@ export default function App() {
                 <Route path="/explore/:category" element={<BoothList />} />
                 <Route path="/booths/:boothId" element={<BoothDetail />} />
                 <Route path="/booths/:boothId/book" element={<BookingPage showToast={showToast} />} />
+                <Route path="/events/:postId" element={<PostDetail />} />
+                <Route path="/vendors/:vendorId" element={<VendorPublicProfile />} />
                 <Route path="/my-bookings" element={<CustomerBookings />} />
                 <Route path="/timeline" element={<Timeline />} />
                 <Route path="/profile" element={<CustomerProfile />} />
@@ -140,7 +148,11 @@ export default function App() {
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/vendors" element={<AdminVendors />} />
+                <Route path="/admin/packages" element={<AdminPackages />} />
                 <Route path="/admin/articles" element={<AdminArticles />} />
+                <Route path="/admin/complaints" element={<AdminComplaints />} />
+                <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
+                <Route path="/admin/logs" element={<AdminLogs />} />
               </Route>
             </Route>
           </Route>

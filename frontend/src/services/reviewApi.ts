@@ -18,6 +18,7 @@ export interface ReviewItem {
   rating: number;
   comment: string;
   vendorReply?: string;
+  repliedAt?: string;
   vendorRepliedAt?: string;
   createdAt: string;
   updatedAt: string;

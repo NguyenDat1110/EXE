@@ -53,3 +53,52 @@ export const rejectVendor = async (vendorId: string, reason: string) => {
   const response = await api.patch(`/admin/vendors/${vendorId}/reject`, { reason });
   return response.data;
 };
+
+// UC-39: Package Management
+export const getAllPackages = async () => {
+  const response = await api.get('/admin/packages');
+  return response.data;
+};
+
+export const togglePackageStatus = async (vendorId: string, packageId: string, isActive: boolean) => {
+  const response = await api.patch(`/admin/packages/${vendorId}/${packageId}/status`, { isActive });
+  return response.data;
+};
+
+// UC-40: Complaint Management
+export const getReports = async () => {
+  const response = await api.get('/admin/reports');
+  return response.data;
+};
+
+export const updateReportStatus = async (reportId: string, status: string, adminNotes?: string) => {
+  const response = await api.patch(`/admin/reports/${reportId}/status`, { status, adminNotes });
+  return response.data;
+};
+
+// UC-41 & UC-43: Subscription Management
+export const getSubscriptionPlans = async () => {
+  const response = await api.get('/admin/subscriptions/plans');
+  return response.data;
+};
+
+export const createSubscriptionPlan = async (planData: any) => {
+  const response = await api.post('/admin/subscriptions/plans', planData);
+  return response.data;
+};
+
+export const updateSubscriptionPlan = async (planId: string, planData: any) => {
+  const response = await api.put(`/admin/subscriptions/plans/${planId}`, planData);
+  return response.data;
+};
+
+export const updateVendorSubscription = async (vendorId: string, data: { action: 'extend' | 'revoke', planType?: string, days?: number }) => {
+  const response = await api.post(`/admin/vendors/${vendorId}/subscription`, data);
+  return response.data;
+};
+
+// UC-42: Activity Logs
+export const getActivityLogs = async () => {
+  const response = await api.get('/admin/logs');
+  return response.data;
+};

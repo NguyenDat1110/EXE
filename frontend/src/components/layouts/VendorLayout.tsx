@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { LayoutDashboard, Briefcase, LogOut, Menu, X, User, FileCheck, Zap, Newspaper, Star } from 'lucide-react';
-import { NotificationBell } from '../ui/NotificationBell';
 import { motion, AnimatePresence } from 'framer-motion';
+import { NotificationDropdown } from '../common/NotificationDropdown';
 
 export function VendorLayout() {
   const { user, logout } = useAuthStore();
@@ -50,11 +50,10 @@ export function VendorLayout() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
-                  isActive
-                    ? 'bg-cyan/15 text-cyan border border-cyan/35 cyan-glow'
-                    : 'text-silver hover:text-white hover:bg-white/5 border border-transparent'
-                }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${isActive
+                  ? 'bg-cyan/15 text-cyan border border-cyan/35 cyan-glow'
+                  : 'text-silver hover:text-white hover:bg-white/5 border border-transparent'
+                  }`}
               >
                 <Icon className="w-5 h-5" />
                 {item.label}
@@ -116,11 +115,10 @@ export function VendorLayout() {
                       key={item.path}
                       to={item.path}
                       onClick={() => setSidebarOpen(false)}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
-                        isActive
-                          ? 'bg-cyan/15 text-cyan border border-cyan/35'
-                          : 'text-silver hover:text-white hover:bg-white/5 border border-transparent'
-                      }`}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${isActive
+                        ? 'bg-cyan/15 text-cyan border border-cyan/35'
+                        : 'text-silver hover:text-white hover:bg-white/5 border border-transparent'
+                        }`}
                     >
                       <Icon className="w-5 h-5" />
                       {item.label}
@@ -163,7 +161,9 @@ export function VendorLayout() {
           </div>
 
           <div className="flex items-center gap-4">
-            <NotificationBell />
+
+            <NotificationDropdown />
+
 
             {user && (
               <div className="relative">

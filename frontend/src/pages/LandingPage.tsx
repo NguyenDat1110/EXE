@@ -4,11 +4,12 @@ import HeroSection from '../components/home/HeroSection';
 import IdeaGallery from '../components/home/IdeaGallery';
 import HowItWorks from '../components/home/HowItWorks';
 import VendorCTA from '../components/home/VendorCTA';
+import Testimonials from '../components/home/Testimonials';
+import FeaturedServices from '../components/home/FeaturedServices';
 
 export default function LandingPage() {
   const routerNavigate = useNavigate();
 
-  // Adapter for existing components expecting the custom navigate prop
   const navigateAdapter = (page: string, params?: any) => {
     if (page === 'vendor-list') {
       routerNavigate('/explore');
@@ -26,11 +27,13 @@ export default function LandingPage() {
   return (
     <>
       <div className="grain-overlay"></div>
-      <div className="relative flex flex-col w-full">
+      <div className="relative flex flex-col w-full overflow-x-hidden">
         <main className="flex-1 w-full">
           <HeroSection navigate={navigateAdapter} />
+          <FeaturedServices navigate={navigateAdapter} />
           <IdeaGallery navigate={navigateAdapter} />
           <HowItWorks />
+          <Testimonials />
           <VendorCTA navigate={navigateAdapter} />
         </main>
       </div>

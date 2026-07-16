@@ -11,8 +11,16 @@ import {
   getActivityLogs,
   adminGetSubscriptions,
   adminExtendSubscription,
-  adminRevokeSubscription
+  adminRevokeSubscription,
+  getAllPackages,
+  togglePackageStatus,
+  getReports,
+  updateReportStatus,
+  getSubscriptionPlans,
+  createSubscriptionPlan,
+  updateSubscriptionPlan
 } from '../controllers/admin.controller';
+
 import { authenticate } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -44,4 +52,18 @@ router.get('/subscriptions', adminGetSubscriptions as any);
 router.post('/vendors/:vendorId/extend-subscription', adminExtendSubscription as any);
 router.post('/vendors/:vendorId/revoke-subscription', adminRevokeSubscription as any);
 
+// UC-39: Package management
+router.get('/packages', getAllPackages as any);
+router.patch('/packages/:vendorId/:packageId/status', togglePackageStatus as any);
+
+// UC-40: Complaint/Report management
+router.get('/reports', getReports as any);
+router.patch('/reports/:reportId/status', updateReportStatus as any);
+
+// UC-41: Subscription plan management
+router.get('/subscriptions/plans', getSubscriptionPlans as any);
+router.post('/subscriptions/plans', createSubscriptionPlan as any);
+router.put('/subscriptions/plans/:planId', updateSubscriptionPlan as any);
+
 export default router;
+

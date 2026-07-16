@@ -2,6 +2,8 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { Post } from '../models/post.model';
 import { Vendor } from '../models/vendor.model';
+import { Booth } from '../models/booth.model';
+import { Types } from 'mongoose';
 import { User } from '../models/user.model';
 import { createNotification } from './notification.controller';
 import multer from 'multer';
@@ -301,5 +303,64 @@ export const deletePost = async (req: AuthRequest, res: Response): Promise<void>
   } catch (err) {
     console.error('deletePost error:', err);
     res.status(500).json({ message: 'Lỗi server khi xóa bài viết' });
+  }
+};
+
+// ─── UC: Lấy chi tiết 1 bài viết ───────────────────────────────────────────
+
+export const getPostById = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { postId } = req.params;
+
+    if (!Types.ObjectId.isValid(postId)) {
+      res.status(400).json({ message: 'Mã bài viết không hợp lệ.' });
+      return;
+    }
+
+    const post = await Post.findOne({ _id: postId, isPublished: true });
+
+    if (!post) {
+      res.status(404).json({ message: 'Không tìm thấy bài viết.' });
+      return;
+    }
+
+    const booth = await Booth.findOne({ vendorId: post.vendorId, isActive: true });
+
+    res.json({ post, boothId: booth?._id });
+  } catch (err) {
+    console.error('getPostById error:', err);
+    res.status(500).json({ message: 'Lỗi server khi lấy chi tiết bài viết' });
+  }
+};
+
+// ─── UC: Lấy tất cả bài viết của 1 vendor ────────────────────────────────────
+
+export const getVendorPosts = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { vendorId } = req.params;
+
+    if (!Types.ObjectId.isValid(vendorId)) {
+      res.status(400).json({ message: 'Mã vendor không hợp lệ.' });
+      return;
+    }
+
+    const vendor = await Vendor.findById(vendorId).select('companyName email phone avatar bio companyAddress averageRating reviewCount');
+
+    if (!vendor) {
+      res.status(404).json({ message: 'Không tìm thấy thông tin vendor.' });
+      return;
+    }
+
+    const posts = await Post.find({ vendorId, isPublished: true }).sort({ createdAt: -1 });
+    const booth = await Booth.findOne({ vendorId, isActive: true });
+
+    res.json({
+      vendor,
+      posts,
+      boothId: booth?._id
+    });
+  } catch (err) {
+    console.error('getVendorPosts error:', err);
+    res.status(500).json({ message: 'Lỗi server khi lấy bài viết của vendor' });
   }
 };

@@ -72,3 +72,15 @@ export const adminGetAllPosts = async (page = 1, limit = 20): Promise<PostsRespo
 export const adminDeletePost = async (postId: string): Promise<void> => {
   await api.delete(`/posts/${postId}`);
 };
+
+// Customer xem chi tiết bài viết
+export const getPostById = async (postId: string): Promise<{ post: Post, boothId: string }> => {
+  const res = await api.get(`/posts/${postId}`);
+  return res.data;
+};
+
+// Customer xem hồ sơ vendor public (tất cả bài viết)
+export const getVendorPosts = async (vendorId: string): Promise<{ vendor: any, posts: Post[], boothId: string }> => {
+  const res = await api.get(`/posts/vendor/${vendorId}`);
+  return res.data;
+};

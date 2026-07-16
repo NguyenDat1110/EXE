@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, Edit2, Eye, EyeOff, Plus, Store, Trash2, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Edit2, Eye, EyeOff, ImagePlus, Plus, Store, Trash2, X } from 'lucide-react';
 import {
   createBooth,
   deleteBooth,
@@ -415,8 +415,17 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
   const handlePackageImages = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
+    const imageFiles = Array.from(files).filter((file) => file.type.startsWith('image/'));
+    if (imageFiles.length === 0) {
+      showToast('Vui lòng chọn file ảnh (PNG, JPG...)', 'error');
+      return;
+    }
+    if (imageFiles.length < files.length) {
+      showToast('Một số file không phải ảnh đã bị bỏ qua.', 'info');
+    }
+
     const currentCount = packageForm.images.length;
-    if (currentCount + files.length > MAX_PACKAGE_IMAGES) {
+    if (currentCount + imageFiles.length > MAX_PACKAGE_IMAGES) {
       const msg = `Chỉ được tải tối đa ${MAX_PACKAGE_IMAGES} ảnh cho mỗi package.`;
       showToast(msg, 'error');
       return;
@@ -425,8 +434,7 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
     setUploadingImages(true);
     try {
       const uploadedUrls: string[] = [];
-      for (let i = 0; i < files.length; i += 1) {
-        const file = files[i];
+      for (const file of imageFiles) {
         const uploaded = await uploadToCloudinary(file, 'eventflow/package-images');
         uploadedUrls.push(uploaded.secure_url);
       }
@@ -1106,17 +1114,41 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
                 </div>
 
                 <div>
-                  <label className="block text-sm text-slate-300 mb-2 flex items-center justify-between">
-                    <span>Ảnh minh họa {packageForm.images.length > 0 ? `(${packageForm.images.length}/${MAX_PACKAGE_IMAGES})` : `(0/${MAX_PACKAGE_IMAGES})`}</span>
+                  <label className="block text-sm text-slate-300 mb-2">
+                    Ảnh minh họa ({packageForm.images.length}/{MAX_PACKAGE_IMAGES})
                   </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => handlePackageImages(e.target.files)}
-                    className="w-full text-sm text-white/70"
-                  />
-                  <p className="text-xs text-slate-400 mt-2">Tối đa {MAX_PACKAGE_IMAGES} ảnh. Ảnh sẽ được xem trước sau khi tải lên.</p>
+                  <label
+                    className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-8 text-center transition-colors ${
+                      uploadingImages
+                        ? 'pointer-events-none opacity-60 border-white/20 bg-white/[0.03]'
+                        : packageErrors.images
+                          ? 'cursor-pointer border-red-400/60 bg-red-500/5 hover:border-red-400 hover:bg-red-500/10'
+                          : 'cursor-pointer border-white/20 bg-white/[0.03] hover:border-primary/60 hover:bg-primary/5'
+                    }`}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      handlePackageImages(e.dataTransfer.files);
+                    }}
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        handlePackageImages(e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+                    <ImagePlus className="w-8 h-8 text-primary" />
+                    <p className="text-sm font-semibold text-white">
+                      {uploadingImages ? 'Đang tải ảnh lên...' : 'Nhấn để chọn ảnh hoặc kéo thả vào đây'}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      PNG, JPG... — tối đa {MAX_PACKAGE_IMAGES} ảnh. Ảnh sẽ được xem trước sau khi tải lên.
+                    </p>
+                  </label>
                   {packageErrors.images && <p className="text-red-400 text-xs mt-1">{packageErrors.images}</p>}
 
                   <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">

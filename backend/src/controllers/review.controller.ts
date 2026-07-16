@@ -4,7 +4,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 import { Booking } from '../models/booking.model';
 import { Review } from '../models/review.model';
 import { Vendor } from '../models/vendor.model';
-import { sendNotification } from '../services/notification.service';
+import { createNotification } from './notification.controller';
 
 export const createReview = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -79,10 +79,22 @@ export const createReview = async (req: AuthRequest, res: Response): Promise<voi
     const totalRating = allVendorReviews.reduce((sum, r) => sum + r.rating, 0);
     const averageRating = reviewCount > 0 ? Number((totalRating / reviewCount).toFixed(2)) : 0;
 
-    await Vendor.findByIdAndUpdate(booking.vendorId, {
-      averageRating,
-      reviewCount
-    });
+    const vendorRecord = await Vendor.findByIdAndUpdate(
+      booking.vendorId,
+      { averageRating, reviewCount },
+      { new: true }
+    );
+
+    if (vendorRecord) {
+      await createNotification(
+        String(vendorRecord.userId),
+        'review_received',
+        'Bạn nhận được đánh giá mới',
+        `Khách hàng đã gửi đánh giá ${parsedRating} sao cho dịch vụ của bạn.`,
+        String(review._id),
+        'Review'
+      );
+    }
 
     // Populate customer details to return
     await review.populate({
@@ -194,6 +206,15 @@ export const replyToReview = async (req: AuthRequest, res: Response): Promise<vo
     (review as any).vendorReply = reply.trim();
     (review as any).vendorRepliedAt = new Date();
     await review.save();
+
+    await createNotification(
+      String(review.customerId),
+      'review_reply',
+      'Vendor đã phản hồi đánh giá của bạn',
+      `${vendor.companyName || 'Vendor'} đã phản hồi đánh giá bạn đã gửi.`,
+      String(review._id),
+      'Review'
+    );
 
     res.status(200).json({ message: 'Phản hồi đánh giá thành công.', review });
   } catch (error) {

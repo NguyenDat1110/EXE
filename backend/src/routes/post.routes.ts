@@ -7,19 +7,23 @@ import {
   updatePost,
   deletePost,
   uploadPostImages,
+  getPostById,
+  getVendorPosts
 } from '../controllers/post.controller';
 import { authenticate } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Public: Customer & Admin xem timeline
+// Specific routes FIRST (before wildcards)
+router.get('/admin/all', authenticate as any, adminGetAllPosts as any);
+router.get('/my', authenticate as any, getMyPosts as any);
+router.get('/vendor/:vendorId', getVendorPosts as any);
+
+// Public feed
 router.get('/', authenticate as any, getAllPosts as any);
 
-// Admin: Xem tất cả bài viết (kể cả unpublished)
-router.get('/admin/all', authenticate as any, adminGetAllPosts as any);
-
-// Vendor: CRUD bài viết của mình
-router.get('/my', authenticate as any, getMyPosts as any);
+// Wildcard LAST
+router.get('/:postId', getPostById as any);
 router.post('/', authenticate as any, (req, res, next) => {
   uploadPostImages(req, res, (err) => {
     if (err) {

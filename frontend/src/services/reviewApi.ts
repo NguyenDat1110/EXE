@@ -19,6 +19,7 @@ export interface ReviewItem {
   comment: string;
   vendorReply?: string;
   repliedAt?: string;
+  vendorRepliedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

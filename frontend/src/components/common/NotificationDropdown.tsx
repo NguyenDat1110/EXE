@@ -24,9 +24,9 @@ export function NotificationDropdown() {
 
   const fetchNotifications = async () => {
     try {
-      const res = await getNotifications(1, 10);
-      setNotifications(res.notifications || []);
-      setUnreadCount(res.unreadCount || 0);
+      const res = await getNotifications(1);
+      setNotifications(res.data?.notifications || []);
+      setUnreadCount(res.data?.unreadCount || 0);
     } catch (err) {
       console.error('Failed to fetch notifications', err);
     }

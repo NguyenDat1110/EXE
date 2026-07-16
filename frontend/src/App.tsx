@@ -24,6 +24,8 @@ import BoothList from './pages/customer/BoothList';
 import BoothDetail from './pages/customer/BoothDetail';
 import BookingPage from './pages/BookingPage';
 import CustomerBookings from './pages/customer/Bookings';
+import PostDetail from './pages/customer/PostDetail';
+import VendorPublicProfile from './pages/customer/VendorPublicProfile';
 
 import { CustomerProfile } from './pages/profile/CustomerProfile';
 import { VendorProfile } from './pages/profile/VendorProfile';
@@ -44,8 +46,9 @@ import AdminSubscriptions from './pages/admin/AdminSubscriptions';
 import AdminLogs from './pages/admin/AdminLogs';
 import Timeline from './pages/customer/Timeline';
 import VendorPosts from './pages/vendor/VendorPosts';
-import VendorReviews from './pages/vendor/VendorReviews';
+import VendorFeedback from './pages/vendor/Feedback';
 import Unauthorized from './pages/Unauthorized';
+import PaymentResult from './pages/PaymentResult';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -88,6 +91,11 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
           </Route>
 
+          {/* Trang kết quả thanh toán PayOS (returnUrl/cancelUrl) - dùng chung cho customer & vendor */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/payment/result" element={<PaymentResult />} />
+          </Route>
+
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -103,6 +111,8 @@ export default function App() {
                 <Route path="/explore/:category" element={<BoothList />} />
                 <Route path="/booths/:boothId" element={<BoothDetail />} />
                 <Route path="/booths/:boothId/book" element={<BookingPage showToast={showToast} />} />
+                <Route path="/events/:postId" element={<PostDetail />} />
+                <Route path="/vendors/:vendorId" element={<VendorPublicProfile />} />
                 <Route path="/my-bookings" element={<CustomerBookings />} />
                 <Route path="/timeline" element={<Timeline />} />
                 <Route path="/profile" element={<CustomerProfile />} />
@@ -122,7 +132,7 @@ export default function App() {
                 <Route path="/vendor/registration/form" element={<VendorSubmissionForm />} />
                 <Route path="/vendor/subscription" element={<SubscriptionPlans />} />
                 <Route path="/vendor/posts" element={<VendorPosts />} />
-                <Route path="/vendor/reviews" element={<VendorReviews showToast={showToast} />} />
+                <Route path="/vendor/feedback" element={<VendorFeedback />} />
                 <Route path="/vendor/subscription-checkout" element={<SubscriptionCheckout />} />
               </Route>
               {/* Full-screen Vendor pages without VendorLayout header */}

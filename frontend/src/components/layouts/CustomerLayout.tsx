@@ -3,11 +3,7 @@ import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { Search, CalendarDays, LogOut, User, Rss } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-<<<<<<< HEAD
 import { NotificationDropdown } from '../common/NotificationDropdown';
-=======
-import { NotificationBell } from '../ui/NotificationBell';
->>>>>>> 2c2104e232045224b0df3fdfd9e1d16ab542c5f5
 
 export function CustomerLayout() {
   const { user, logout } = useAuthStore();
@@ -72,11 +68,7 @@ export function CustomerLayout() {
             <span className="absolute top-1 right-1 w-2 h-2 bg-cyan rounded-full" />
           </Link>
 
-<<<<<<< HEAD
           <NotificationDropdown />
-=======
-          <NotificationBell />
->>>>>>> 2c2104e232045224b0df3fdfd9e1d16ab542c5f5
 
           {/* User Profile Dropdown */}
           {user && (

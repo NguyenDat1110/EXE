@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Star, MessageSquare, Reply } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { getVendorReviews, replyToReview, ReviewItem } from '../../services/reviewApi';
-import { getVendorProfile } from '../../services/vendorApi';
 
 export default function VendorReviews({ showToast }: { showToast: (msg: string, type?: any) => void }) {
   const { user } = useAuthStore();
@@ -18,10 +17,9 @@ export default function VendorReviews({ showToast }: { showToast: (msg: string, 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const profileRes = await getVendorProfile();
-      if (profileRes.data && profileRes.data._id) {
-        setVendorId(profileRes.data._id);
-        const reviewsRes = await getVendorReviews(profileRes.data._id);
+      if (user && user.id) {
+        setVendorId(user.id);
+        const reviewsRes = await getVendorReviews(user.id);
         setReviews(reviewsRes);
       }
     } catch (error) {

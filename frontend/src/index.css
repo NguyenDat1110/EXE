@@ -37,6 +37,13 @@
   .cyan-glow {
     box-shadow: 0 0 20px rgba(0, 212, 255, 0.15);
   }
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
   .grain-overlay {
     position: fixed;
     top: 0;

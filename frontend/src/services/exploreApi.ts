@@ -80,3 +80,8 @@ export const getBoothDetail = async (
   const res = await api.get(`/explore/booths/${boothId}`);
   return res.data;
 };
+
+export const getVendorFirstBooth = async (vendorId: string): Promise<{ boothId: string }> => {
+  const res = await api.get(`/explore/vendors/${vendorId}/first-booth`);
+  return res.data;
+};

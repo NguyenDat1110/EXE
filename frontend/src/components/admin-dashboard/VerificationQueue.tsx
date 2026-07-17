@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, XCircle, Eye, FileText, ShieldCheck, X, Loader, AlertCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Eye, FileText, ShieldCheck, X, Loader, AlertCircle, Download } from 'lucide-react';
 import { getPendingVendors, approveVendor, rejectVendor } from '../../services/adminApi';
+import { getPreviewUrl, getDownloadUrl } from '../../services/fileUrl';
 
 interface Vendor {
   _id: string;
@@ -28,31 +29,33 @@ const renderBusinessLicenseLinks = (license: string | string[] | undefined, name
 
   const links = Array.isArray(license) ? license : [license];
 
-  const isDocument = (url: string) => /\.(pdf|docx?|xlsx?|pptx?|zip|rar)$/i.test(url);
-
-  const addDownloadFlag = (url: string) => {
-    if (!url.includes('cloudinary.com') || !isDocument(url)) return url;
-
-    if (url.includes('raw/upload')) {
-      return url.replace('raw/upload', 'image/upload/fl_attachment');
-    }
-
-    return url.includes('fl_attachment') ? url : url.replace('/upload/', '/upload/fl_attachment/');
-  };
-
   return (
     <div className="space-y-2">
       {links.map((item, index) => (
-        <a
-          key={`${item}-${index}`}
-          href={addDownloadFlag(item)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary hover:underline flex items-center gap-2"
-        >
-          <FileText className="w-4 h-4" />
-          <span>{names?.[index] || (links.length > 1 ? `Giấy phép ${index + 1}` : 'Giấy phép kinh doanh')}</span>
-        </a>
+        <div key={`${item}-${index}`} className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-primary shrink-0" />
+          <span className="text-sm flex-1">{names?.[index] || (links.length > 1 ? `Giấy phép ${index + 1}` : 'Giấy phép kinh doanh')}</span>
+          <div className="flex items-center gap-1.5">
+            <a
+              href={getPreviewUrl(item)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              Xem
+            </a>
+            <a
+              href={getDownloadUrl(item)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-white/5 text-silver text-xs font-medium hover:bg-white/10 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Tải
+            </a>
+          </div>
+        </div>
       ))}
     </div>
   );

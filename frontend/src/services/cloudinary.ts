@@ -35,6 +35,8 @@ const CLOUDINARY_IMAGE_API_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_C
 
 type CloudinaryResourceType = 'image' | 'raw' | 'auto';
 
+const isPdfFile = (file: File) => file.type === 'application/pdf';
+
 /**
  * Upload image file to Cloudinary
  * @param file - Image file to upload
@@ -71,6 +73,22 @@ export const uploadToCloudinaryFile = async (
       }
     }
 
+    // PDF files -> upload to Supabase (not Cloudinary)
+    if (isPdfFile(file)) {
+      const { uploadToSupabase } = await import('./supabase');
+      const result = await uploadToSupabase(file, 'vendor-licenses', folder);
+      return {
+        public_id: result.url,
+        url: result.url,
+        secure_url: result.url,
+        format: 'pdf',
+        width: 0,
+        height: 0,
+        bytes: file.size,
+        created_at: new Date().toISOString(),
+      };
+    }
+
     const endpoint = 'image/upload';
 
     const formData = new FormData();
@@ -90,7 +108,7 @@ export const uploadToCloudinaryFile = async (
     const data = await response.json() as CloudinaryResponse;
     return data;
   } catch (error) {
-    console.error('Cloudinary upload error:', error);
+    console.error('Upload error:', error);
     throw error;
   }
 };

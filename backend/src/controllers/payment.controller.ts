@@ -6,7 +6,8 @@ import { Vendor } from '../models/vendor.model';
 import { User } from '../models/user.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { getPayOS, generateOrderCode } from '../services/payos.service';
-import { SUBSCRIPTION_PLANS, activateVendorSubscription } from './subscription.controller';
+import { activateVendorSubscription } from './subscription.controller';
+import { SubscriptionPlan } from '../models/subscriptionPlan.model';
 import { createNotification } from './notification.controller';
 import { sendDepositConfirmedEmail } from '../services/email.service';
 
@@ -22,7 +23,7 @@ const createPayOSPayment = async (params: {
   userId: string;
   bookingId?: Types.ObjectId;
   vendorId?: Types.ObjectId;
-  subscriptionPlan?: 'basic' | 'vip';
+  subscriptionPlan?: string;
 }): Promise<IPayment> => {
   const orderCode = generateOrderCode();
 
@@ -107,7 +108,9 @@ const fulfillPayment = async (payment: IPayment): Promise<void> => {
     await activateVendorSubscription(payment.vendorId, payment.subscriptionPlan);
 
     try {
-      await createNotification(String(payment.userId), 'system', 'Nâng cấp gói thành công', `Bạn đã thanh toán và kích hoạt ${SUBSCRIPTION_PLANS[payment.subscriptionPlan].name} thành công.`, String(payment.vendorId), 'Vendor');
+      const planDoc = await SubscriptionPlan.findOne({ $or: [{ code: payment.subscriptionPlan }, { type: payment.subscriptionPlan }] }).lean();
+      const planName = planDoc?.name || payment.subscriptionPlan;
+      await createNotification(String(payment.userId), 'system', 'Nâng cấp gói thành công', `Bạn đã thanh toán và kích hoạt ${planName} thành công.`, String(payment.vendorId), 'Vendor');
     } catch (notifyErr) {
       console.error('[PayOS] Notify subscription error:', notifyErr);
     }
@@ -261,12 +264,16 @@ export const createSubscriptionPayment = async (req: AuthRequest, res: Response)
     }
 
     const plan = String(req.body?.plan || '');
-    if (!['basic', 'vip'].includes(plan)) {
+    if (!plan) {
       res.status(400).json({ message: 'Gói dịch vụ không hợp lệ.' });
       return;
     }
 
-    const planConfig = SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS];
+    const planDoc = await SubscriptionPlan.findOne({ code: plan, isActive: true }).lean();
+    if (!planDoc) {
+      res.status(400).json({ message: 'Gói dịch vụ không tồn tại.' });
+      return;
+    }
 
     const vendor = await Vendor.findOne({ userId: req.user.id });
     if (!vendor) {
@@ -286,8 +293,8 @@ export const createSubscriptionPayment = async (req: AuthRequest, res: Response)
     }
 
     // Gói miễn phí: kích hoạt trực tiếp, không cần thanh toán
-    if (planConfig.price <= 0) {
-      const updatedVendor = await activateVendorSubscription(vendor._id, plan as 'basic' | 'vip');
+    if (planDoc.price <= 0) {
+      const updatedVendor = await activateVendorSubscription(vendor._id, planDoc.code);
       res.status(200).json({
         activated: true,
         vendor: {
@@ -299,7 +306,7 @@ export const createSubscriptionPayment = async (req: AuthRequest, res: Response)
       return;
     }
 
-    const amount = Math.round(planConfig.price);
+    const amount = Math.round(planDoc.price);
 
     const existing = await Payment.findOne({ vendorId: vendor._id, type: 'subscription', subscriptionPlan: plan, status: 'pending', amount });
     if (existing?.checkoutUrl) {
@@ -313,7 +320,7 @@ export const createSubscriptionPayment = async (req: AuthRequest, res: Response)
       description: `GOI ${plan.toUpperCase()}`,
       userId: req.user.id,
       vendorId: vendor._id as Types.ObjectId,
-      subscriptionPlan: plan as 'basic' | 'vip'
+      subscriptionPlan: plan
     });
 
     res.status(200).json({ checkoutUrl: payment.checkoutUrl, orderCode: payment.orderCode, amount });

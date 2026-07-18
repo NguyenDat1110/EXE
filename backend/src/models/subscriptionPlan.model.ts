@@ -2,7 +2,8 @@ import { Schema, model, Document } from 'mongoose';
 
 export interface ISubscriptionPlan extends Document {
   name: string;
-  type: 'basic' | 'vip' | 'premium';
+  code: string;
+  type: 'basic' | 'vip';
   price: number;
   durationMonths: number;
   features: string[];
@@ -14,7 +15,8 @@ export interface ISubscriptionPlan extends Document {
 const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
   {
     name: { type: String, required: true },
-    type: { type: String, enum: ['basic', 'vip', 'premium'], required: true },
+    code: { type: String, required: true, unique: true, uppercase: true },
+    type: { type: String, enum: ['basic', 'vip'], required: true },
     price: { type: Number, required: true },
     durationMonths: { type: Number, required: true, default: 1 },
     features: { type: [String], default: [] },

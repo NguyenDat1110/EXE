@@ -92,8 +92,14 @@ export const updateSubscriptionPlan = async (planId: string, planData: any) => {
   return response.data;
 };
 
+export const deleteSubscriptionPlan = async (planId: string) => {
+  const response = await api.delete(`/admin/subscriptions/plans/${planId}`);
+  return response.data;
+};
+
 export const updateVendorSubscription = async (vendorId: string, data: { action: 'extend' | 'revoke', planType?: string, days?: number }) => {
-  const response = await api.post(`/admin/vendors/${vendorId}/subscription`, data);
+  const endpoint = data.action === 'extend' ? 'extend-subscription' : 'revoke-subscription';
+  const response = await api.post(`/admin/vendors/${vendorId}/${endpoint}`, data);
   return response.data;
 };
 

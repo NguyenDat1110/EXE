@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Package } from '../models/package.model';
 import { Vendor } from '../models/vendor.model';
 import { Booth } from '../models/booth.model';
+import { SubscriptionPlan } from '../models/subscriptionPlan.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 const MAX_PACKAGE_IMAGES = 10;
@@ -120,9 +121,15 @@ export const createPackage = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    if (model3dUrl && vendor.subscriptionPlan !== 'vip') {
-      res.status(403).json({ message: 'Chức năng 3D yêu cầu gói VIP. Vui lòng nâng cấp.' });
-      return;
+    if (model3dUrl) {
+      const vendorPlan = await SubscriptionPlan.findOne({
+        $or: [{ code: vendor.subscriptionPlan }, { type: vendor.subscriptionPlan }],
+        isActive: true
+      }).lean();
+      if (!vendorPlan || vendorPlan.type !== 'vip') {
+        res.status(403).json({ message: 'Chức năng 3D yêu cầu gói VIP. Vui lòng nâng cấp.' });
+        return;
+      }
     }
 
     const pkg = await Package.create({
@@ -182,9 +189,15 @@ export const updatePackage = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     // If attempting to set model3dUrl ensure VIP
-    if (req.body.model3dUrl && vendor.subscriptionPlan !== 'vip') {
-      res.status(403).json({ message: 'Tính năng 3D yêu cầu gói VIP.' });
-      return;
+    if (req.body.model3dUrl) {
+      const vendorPlan = await SubscriptionPlan.findOne({
+        $or: [{ code: vendor.subscriptionPlan }, { type: vendor.subscriptionPlan }],
+        isActive: true
+      }).lean();
+      if (!vendorPlan || vendorPlan.type !== 'vip') {
+        res.status(403).json({ message: 'Tính năng 3D yêu cầu gói VIP.' });
+        return;
+      }
     }
 
     if (req.body.boothId) {

@@ -18,7 +18,8 @@ import {
   updateReportStatus,
   getSubscriptionPlans,
   createSubscriptionPlan,
-  updateSubscriptionPlan
+  updateSubscriptionPlan,
+  deleteSubscriptionPlan
 } from '../controllers/admin.controller';
 
 import { authenticate } from '../middleware/auth.middleware';
@@ -64,6 +65,7 @@ router.patch('/reports/:reportId/status', updateReportStatus as any);
 router.get('/subscriptions/plans', getSubscriptionPlans as any);
 router.post('/subscriptions/plans', createSubscriptionPlan as any);
 router.put('/subscriptions/plans/:planId', updateSubscriptionPlan as any);
+router.delete('/subscriptions/plans/:planId', deleteSubscriptionPlan as any);
 
 export default router;
 

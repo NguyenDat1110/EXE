@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, Loader, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Upload, Loader, AlertCircle, CheckCircle, Clock, XCircle, Eye, Download } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { uploadToCloudinary, uploadToCloudinaryFile, optimizeCloudinaryUrl } from '../../services/cloudinary';
+import { getPreviewUrl, getDownloadUrl } from '../../services/fileUrl';
 import api from '../../services/api';
 
 interface VendorStatus {
@@ -195,9 +196,7 @@ export function VendorSubmissionForm() {
         files.map(async (file) => {
           const res = await uploadToCloudinaryFile(file, 'eventflow/vendor-licenses', undefined, 20 * 1024 * 1024);
 
-          const url = !file.type.startsWith('image/')
-            ? res.secure_url.replace('/upload/', '/upload/fl_attachment/')
-            : res.secure_url;
+          const url = res.secure_url;
 
           return {
             name: file.name,
@@ -565,14 +564,16 @@ export function VendorSubmissionForm() {
                     <div key={`${file.url}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3">
                       <div className="min-w-0">
                         <p className="text-white text-sm font-medium truncate">{file.name}</p>
-                        <a href={(() => {
-                          const u = file.url;
-                          if (!u.includes('cloudinary.com') || !/\.(pdf|docx?|xlsx?|pptx?|zip|rar)$/i.test(u)) return u;
-                          if (u.includes('raw/upload')) return u.replace('raw/upload', 'image/upload/fl_attachment');
-                          return u.includes('fl_attachment') ? u : u.replace('/upload/', '/upload/fl_attachment/');
-                        })()} target="_blank" rel="noreferrer" className="text-cyan text-xs hover:underline">
-                          Xem tài liệu
-                        </a>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <a href={getPreviewUrl(file.url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-cyan/10 text-cyan text-xs font-medium hover:bg-cyan/20 transition-colors">
+                            <Eye className="w-3.5 h-3.5" />
+                            Xem
+                          </a>
+                          <a href={getDownloadUrl(file.url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/5 text-silver text-xs font-medium hover:bg-white/10 transition-colors">
+                            <Download className="w-3.5 h-3.5" />
+                            Tải
+                          </a>
+                        </div>
                       </div>
                       {!isViewMode && (
                         <button

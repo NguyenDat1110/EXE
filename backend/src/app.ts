@@ -14,6 +14,7 @@ import reviewRoutes from './routes/review.routes';
 import postRoutes from './routes/post.routes';
 import notificationRoutes from './routes/notification.routes';
 import complaintRoutes from './routes/complaint.routes';
+import fileRoutes from './routes/file.routes';
 
 // exploreRoutes will be loaded dynamically to avoid crashing the dev server when files are being edited
 let exploreRoutes: any = null;
@@ -78,6 +79,9 @@ app.use('/api/notifications', notificationRoutes);
 
 // Complaint Routes
 app.use('/api/complaints', complaintRoutes);
+
+// File Download Proxy
+app.use('/api/files', fileRoutes);
 
 // Public Explore Routes (mounted only when available)
 if (exploreRoutes) {

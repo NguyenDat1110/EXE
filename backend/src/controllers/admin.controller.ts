@@ -142,7 +142,7 @@ export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void
       users.map(async (user) => {
         let vendorInfo = null;
         if (user.role === 'vendor') {
-          vendorInfo = await Vendor.findOne({ userId: user._id }).select('companyName verificationStatus');
+          vendorInfo = await Vendor.findOne({ userId: user._id }).select('companyName verificationStatus subscriptionPlan subscriptionStatus subscriptionExpiry');
         }
         return {
           ...user.toObject(),
@@ -505,24 +505,30 @@ export const adminExtendSubscription = async (req: AuthRequest, res: Response): 
     if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền.' }); return; }
 
     const { vendorId } = req.params;
-    const { plan = 'vip', days = 365 } = req.body;
+    const { plan = 'VIP', days = 365 } = req.body;
 
     if (!Types.ObjectId.isValid(vendorId)) { res.status(400).json({ message: 'Vendor ID không hợp lệ.' }); return; }
 
     const vendor = await Vendor.findById(vendorId);
     if (!vendor) { res.status(404).json({ message: 'Không tìm thấy vendor.' }); return; }
 
+    const planDoc = await SubscriptionPlan.findOne({ code: plan, isActive: true }).lean();
+    if (!planDoc) {
+      res.status(400).json({ message: 'Gói dịch vụ không tồn tại.' });
+      return;
+    }
+
     const now = new Date();
     const base = vendor.subscriptionExpiry && vendor.subscriptionExpiry > now ? vendor.subscriptionExpiry : now;
     const newExpiry = new Date(base);
     newExpiry.setDate(newExpiry.getDate() + Number(days));
 
-    vendor.subscriptionPlan = plan as 'basic' | 'vip';
+    vendor.subscriptionPlan = planDoc.code;
     vendor.subscriptionExpiry = newExpiry;
     vendor.subscriptionStatus = 'active';
     await vendor.save();
 
-    res.status(200).json({ message: `Gia hạn gói ${plan} thành công.`, vendor: { subscriptionPlan: vendor.subscriptionPlan, subscriptionExpiry: vendor.subscriptionExpiry, subscriptionStatus: vendor.subscriptionStatus } });
+    res.status(200).json({ message: `Gia hạn gói ${planDoc.code} thành công.`, vendor: { subscriptionPlan: vendor.subscriptionPlan, subscriptionExpiry: vendor.subscriptionExpiry, subscriptionStatus: vendor.subscriptionStatus } });
   } catch (error) {
     console.error('Admin extend subscription error:', error);
     res.status(500).json({ message: 'Lỗi hệ thống.' });
@@ -653,8 +659,22 @@ export const updateReportStatus = async (req: AuthRequest, res: Response): Promi
 // ==========================================
 export const getSubscriptionPlans = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const plans = await SubscriptionPlan.find().sort({ price: 1 });
-    res.status(200).json({ message: 'Lấy danh sách gói thành công', data: plans });
+    const plans = await SubscriptionPlan.find().sort({ price: 1 }).lean();
+    const now = new Date();
+
+    const plansWithStats = await Promise.all(plans.map(async (plan) => {
+      const [totalPurchased, activeCount] = await Promise.all([
+        Vendor.countDocuments({ 'purchasedSubscriptions.planCode': plan.code }),
+        Vendor.countDocuments({
+          subscriptionPlan: plan.code,
+          subscriptionStatus: 'active',
+          subscriptionExpiry: { $gt: now }
+        }),
+      ]);
+      return { ...plan, totalPurchased, activeCount };
+    }));
+
+    res.status(200).json({ message: 'Lấy danh sách gói thành công', data: plansWithStats });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi hệ thống.' });
   }
@@ -663,6 +683,13 @@ export const getSubscriptionPlans = async (req: AuthRequest, res: Response): Pro
 export const createSubscriptionPlan = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền truy cập' }); return; }
+
+    const { code } = req.body;
+    const existing = await SubscriptionPlan.findOne({ code: code?.toUpperCase() });
+    if (existing) {
+      res.status(400).json({ message: `Mã gói "${code?.toUpperCase()}" đã tồn tại.` });
+      return;
+    }
 
     const plan = await SubscriptionPlan.create(req.body);
     await ActivityLog.create({
@@ -673,7 +700,11 @@ export const createSubscriptionPlan = async (req: AuthRequest, res: Response): P
     });
 
     res.status(201).json({ message: 'Tạo gói thành công', data: plan });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 11000) {
+      res.status(400).json({ message: 'Mã gói đã tồn tại.' });
+      return;
+    }
     res.status(500).json({ message: 'Lỗi hệ thống.' });
   }
 };
@@ -695,6 +726,42 @@ export const updateSubscriptionPlan = async (req: AuthRequest, res: Response): P
     });
 
     res.status(200).json({ message: 'Cập nhật gói thành công', data: plan });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi hệ thống.' });
+  }
+};
+
+export const deleteSubscriptionPlan = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') { res.status(403).json({ message: 'Chỉ admin mới có quyền truy cập' }); return; }
+
+    const { planId } = req.params;
+    const plan = await SubscriptionPlan.findById(planId);
+    if (!plan) { res.status(404).json({ message: 'Gói không tồn tại' }); return; }
+
+    const now = new Date();
+    const activeVendors = await Vendor.countDocuments({
+      $or: [
+        { subscriptionPlan: plan.code, subscriptionStatus: 'active', subscriptionExpiry: { $gt: now } },
+        { 'purchasedSubscriptions': { $elemMatch: { planCode: plan.code, expiryAt: { $gt: now } } } },
+      ],
+    });
+
+    if (activeVendors > 0) {
+      res.status(400).json({ message: `Còn ${activeVendors} vendor đang sử dụng gói này, không thể xoá.` });
+      return;
+    }
+
+    await SubscriptionPlan.findByIdAndDelete(planId);
+
+    await ActivityLog.create({
+      userId: req.user.id,
+      action: 'delete_subscription_plan',
+      resource: 'SubscriptionPlan',
+      details: { planId, name: plan.name }
+    });
+
+    res.status(200).json({ message: 'Xoá gói thành công' });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi hệ thống.' });
   }

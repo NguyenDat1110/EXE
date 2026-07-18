@@ -1,36 +1,47 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { Vendor } from '../models/vendor.model';
-
-// Define subscription plans
-export const SUBSCRIPTION_PLANS = {
-  basic: {
-    name: 'Gói Thường',
-    price: 0, // Free or some amount
-    duration: 365, // days
-    features: ['2D Images', 'Limited Posts', 'Basic Support']
-  },
-  vip: {
-    name: 'Gói VIP',
-    price: 500000, // Vietnamese Dong
-    duration: 365,
-    features: ['3D Images', '360 Viewer', 'Priority Search', 'Premium Support']
-  }
-};
+import { SubscriptionPlan } from '../models/subscriptionPlan.model';
 
 // Kích hoạt gói cho vendor - dùng chung cho gói miễn phí và webhook PayOS sau khi thanh toán thành công
-export const activateVendorSubscription = async (vendorId: unknown, plan: 'basic' | 'vip') => {
-  const vendor = await Vendor.findById(vendorId);
+export const activateVendorSubscription = async (vendorId: unknown, planCode: string) => {
+  const [vendor, planDoc] = await Promise.all([
+    Vendor.findById(vendorId),
+    SubscriptionPlan.findOne({
+      $or: [{ code: planCode }, { type: planCode }],
+      isActive: true
+    }).lean(),
+  ]);
+
   if (!vendor) {
     throw new Error('Vendor not found');
   }
 
-  const expiryDate = new Date();
-  expiryDate.setDate(expiryDate.getDate() + SUBSCRIPTION_PLANS[plan].duration);
+  if (!planDoc) {
+    throw new Error('Subscription plan not found');
+  }
 
-  vendor.subscriptionPlan = plan;
+  const expiryDate = new Date();
+  expiryDate.setMonth(expiryDate.getMonth() + planDoc.durationMonths);
+
+  vendor.subscriptionPlan = planDoc.code;
   vendor.subscriptionExpiry = expiryDate;
   vendor.subscriptionStatus = 'active';
+
+  // Track purchase history
+  if (!vendor.purchasedSubscriptions) vendor.purchasedSubscriptions = [];
+  const existing = vendor.purchasedSubscriptions.find(s => s.planCode === planDoc.code);
+  if (existing) {
+    existing.expiryAt = expiryDate;
+  } else {
+    vendor.purchasedSubscriptions.push({
+      planCode: planDoc.code,
+      planName: planDoc.name,
+      planType: planDoc.type,
+      purchasedAt: new Date(),
+      expiryAt: expiryDate,
+    });
+  }
 
   await vendor.save();
   return vendor;
@@ -45,14 +56,17 @@ export const updateSubscription = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    if (!plan || !['basic', 'vip'].includes(plan)) {
+    if (!plan) {
       return res.status(400).json({ message: 'Invalid subscription plan' });
     }
 
-    const planConfig = SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS];
+    const planDoc = await SubscriptionPlan.findOne({ code: plan, isActive: true }).lean();
+    if (!planDoc) {
+      return res.status(400).json({ message: 'Gói dịch vụ không tồn tại' });
+    }
 
     // Gói trả phí phải thanh toán qua PayOS (POST /api/payment/subscription)
-    if (planConfig.price > 0) {
+    if (planDoc.price > 0) {
       return res.status(400).json({ message: 'Gói trả phí cần được thanh toán qua PayOS. Vui lòng sử dụng luồng thanh toán.' });
     }
 
@@ -74,7 +88,7 @@ export const updateSubscription = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const updatedVendor = await activateVendorSubscription(vendor._id, plan as 'basic' | 'vip');
+    const updatedVendor = await activateVendorSubscription(vendor._id, plan);
 
     res.json({
       message: 'Subscription updated successfully',
@@ -111,6 +125,60 @@ export const getSubscriptionStatus = async (req: AuthRequest, res: Response) => 
     });
   } catch (err) {
     console.error('Error getting subscription status:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const reactivateSubscription = async (req: AuthRequest, res: Response) => {
+  try {
+    const { plan } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    if (!plan) {
+      return res.status(400).json({ message: 'Invalid plan' });
+    }
+
+    const vendor = await Vendor.findOne({ userId });
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    // Find purchased subscription record
+    const sub = vendor.purchasedSubscriptions?.find(s => s.planCode === plan);
+    if (!sub) {
+      return res.status(400).json({ message: 'Gói chưa từng được mua' });
+    }
+
+    const now = new Date();
+    if (sub.expiryAt <= now) {
+      return res.status(400).json({ message: 'Gói đã hết hạn, không thể kích hoạt lại' });
+    }
+
+    // Don't allow reactivating the currently active plan
+    if (vendor.subscriptionPlan === plan && vendor.subscriptionStatus === 'active' && vendor.subscriptionExpiry && vendor.subscriptionExpiry > now) {
+      return res.status(400).json({ message: 'Gói này đang hoạt động' });
+    }
+
+    vendor.subscriptionPlan = sub.planCode;
+    vendor.subscriptionExpiry = sub.expiryAt;
+    vendor.subscriptionStatus = 'active';
+
+    await vendor.save();
+
+    res.json({
+      message: 'Kích hoạt lại gói thành công',
+      vendor: {
+        subscriptionPlan: vendor.subscriptionPlan,
+        subscriptionExpiry: vendor.subscriptionExpiry,
+        subscriptionStatus: vendor.subscriptionStatus
+      }
+    });
+  } catch (err) {
+    console.error('Error reactivating subscription:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

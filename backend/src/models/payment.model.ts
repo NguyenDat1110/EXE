@@ -11,7 +11,7 @@ export interface IPayment extends Document {
   userId: Types.ObjectId;
   bookingId?: Types.ObjectId;
   vendorId?: Types.ObjectId;
-  subscriptionPlan?: 'basic' | 'vip';
+  subscriptionPlan?: string;
   description?: string;
   checkoutUrl?: string;
   paymentLinkId?: string;
@@ -29,7 +29,7 @@ const paymentSchema = new Schema<IPayment>(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     bookingId: { type: Schema.Types.ObjectId, ref: 'Booking' },
     vendorId: { type: Schema.Types.ObjectId, ref: 'Vendor' },
-    subscriptionPlan: { type: String, enum: ['basic', 'vip'] },
+    subscriptionPlan: { type: String },
     description: { type: String, default: '' },
     checkoutUrl: { type: String, default: '' },
     paymentLinkId: { type: String, default: '' },

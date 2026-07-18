@@ -29,7 +29,7 @@ export const createBookingFinalPayment = async (bookingId: string) => {
 };
 
 // Tạo link thanh toán nâng cấp gói vendor qua PayOS
-export const createSubscriptionPayment = async (plan: 'basic' | 'vip') => {
+export const createSubscriptionPayment = async (plan: string) => {
   return api.post<CreatePaymentResponse>('/payment/subscription', { plan });
 };
 

@@ -32,9 +32,16 @@ export interface IVendor extends Document {
   reviewCount: number;
   totalBookings: number;
   packages: IPackage[];
-  subscriptionPlan?: 'basic' | 'vip';
+  subscriptionPlan?: string;
   subscriptionExpiry?: Date;
   subscriptionStatus?: 'active' | 'expired' | 'inactive';
+  purchasedSubscriptions?: Array<{
+    planCode: string;
+    planName: string;
+    planType: string;
+    purchasedAt: Date;
+    expiryAt: Date;
+  }>;
   accountHolderName?: string;
   accountNumber?: string;
   bankName?: string;
@@ -77,10 +84,10 @@ const vendorSchema = new Schema<IVendor>(
     reviewCount: { type: Number, default: 0 },
     totalBookings: { type: Number, default: 0 },
     packages: [packageSchema],
-    subscriptionPlan: { type: String, enum: ['basic', 'vip'], default: undefined },
+    subscriptionPlan: { type: String, default: undefined },
     subscriptionExpiry: { type: Date },
-    subscriptionStatus: { type: String, enum: ['active', 'expired', 'inactive'], default: 'inactive' }
-    ,
+    subscriptionStatus: { type: String, enum: ['active', 'expired', 'inactive'], default: 'inactive' },
+    purchasedSubscriptions: { type: [{ planCode: String, planName: String, planType: String, purchasedAt: Date, expiryAt: Date }], default: [] },
     accountHolderName: { type: String, default: '' },
     accountNumber: { type: String, default: '' },
     bankName: { type: String, default: '' },

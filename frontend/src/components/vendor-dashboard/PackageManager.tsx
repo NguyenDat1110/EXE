@@ -187,9 +187,15 @@ export default function PackageManager({ showToast }: { showToast: (msg: string,
 
   const loadVendorPlan = async () => {
     try {
-      const res = await api.get('/vendor/info');
-      setVendorPlan((res?.data?.vendor?.subscriptionPlan as 'basic' | 'vip' | undefined) || null);
-      setVendorInfo(res?.data?.vendor || null);
+      const [vendorRes, plansRes] = await Promise.all([
+        api.get('/vendor/info'),
+        api.get('/subscription/plans').catch(() => ({ data: { plans: [] } })),
+      ]);
+      const stored = vendorRes?.data?.vendor?.subscriptionPlan || '';
+      const allPlans: any[] = Object.values(plansRes?.data?.plans || {});
+      const matched = allPlans.find(p => p.code === stored) || allPlans.find(p => p.type === stored);
+      setVendorPlan((matched?.type as 'basic' | 'vip') || null);
+      setVendorInfo(vendorRes?.data?.vendor || null);
     } catch (error) {
       console.error('Get vendor info error', error);
       setVendorPlan(null);
